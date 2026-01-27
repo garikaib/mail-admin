@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% include "partials/sidebar.html" %}
+
+<!-- Main Page Content -->
+<main class="flex-1 overflow-y-auto bg-slate-50 p-8 space-y-8 animate-fade-in">
+
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h2 class="text-3xl font-extrabold text-slate-800 tracking-tight">Global Infrastructure</h2>
+            <p class="text-slate-500 font-medium">Monitoring {{ domains|length }} managed mail domains</p>
+        </div>
+
+        <button
+            class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-bold shadow-xl shadow-indigo-100 flex items-center gap-2 transform active:scale-95 transition-all group">
+            <i data-lucide="plus-square" class="w-5 h-5"></i>
+            <span>Add Domain</span>
+        </button>
+    </div>
+
+    <!-- Server Health Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+            <div class="flex justify-between items-start mb-4">
+                <div class="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl">
+                    <i data-lucide="cpu" class="w-5 h-5"></i>
+                </div>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CPU Load</span>
+            </div>
+            <p class="text-2xl font-black text-slate-800">{{ health.cpu_usage|default:"0" }}%</p>
+            <div class="w-full h-1.5 bg-slate-100 rounded-full mt-3 overflow-hidden">
+                <div class="bg-emerald-500 h-full" style="width: {{ health.cpu_usage|default:0 }}%"></div>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+            <div class="flex justify-between items-start mb-4">
+                <div class="bg-blue-50 text-blue-600 p-2.5 rounded-xl">
+                    <i data-lucide="hard-drive" class="w-5 h-5"></i>
+                </div>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Memory</span>
+            </div>
+            <p class="text-2xl font-black text-slate-800">{{ health.ram_usage|default:"0" }}%</p>
+            <div class="w-full h-1.5 bg-slate-100 rounded-full mt-3 overflow-hidden">
+                <div class="bg-blue-500 h-full" style="width: {{ health.ram_usage|default:0 }}%"></div>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+            <div class="flex justify-between items-start mb-4">
+                <div class="bg-amber-50 text-amber-600 p-2.5 rounded-xl">
+                    <i data-lucide="database" class="w-5 h-5"></i>
+                </div>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Disk Usage</span>
+            </div>
+            <p class="text-2xl font-black text-slate-800">{{ health.disk_usage|default:"0" }}%</p>
+            <div class="w-full h-1.5 bg-slate-100 rounded-full mt-3 overflow-hidden">
+                <div class="bg-amber-500 h-full" style="width: {{ health.disk_usage|default:0 }}%"></div>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+            <div class="flex justify-between items-start mb-4">
+                <div class="bg-indigo-50 text-indigo-600 p-2.5 rounded-xl">
+                    <i data-lucide="clock" class="w-5 h-5"></i>
+                </div>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">System Uptime</span>
+            </div>
+            <p class="text-lg font-bold text-slate-800 truncate">{{ health.uptime|default:"N/A" }}</p>
+            <p class="text-[10px] text-slate-400 font-bold uppercase mt-2">v22.04 LTS</p>
+        </div>
+    </div>
+
+    <!-- Domain Table Card -->
+    <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden">
+        <table class="w-full text-left border-collapse">
+            <thead class="bg-slate-50 text-slate-400 font-bold">
+                <tr>
+                    <th class="px-8 py-5 border-b border-slate-100 text-[10px] uppercase tracking-[0.2em]">Domain
+                        Property</th>
+                    <th class="px-8 py-5 border-b border-slate-100 text-[10px] uppercase tracking-[0.2em]">Activity
+                        (Sent/Recv)
+                    </th>
+                    <th class="px-8 py-5 border-b border-slate-100 text-[10px] uppercase tracking-[0.2em]">Top Sender
+                    </th>
+                    <th class="px-8 py-5 border-b border-slate-100 text-right text-[10px] uppercase tracking-[0.2em]">
+                        Management</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+                {% for dom in domains %}
+                <tr class="hover:bg-slate-50/50 transition-all group">
+                    <td class="px-8 py-6">
+                        <div class="flex items-center gap-3">
+                            <div
+                                class="bg-brand-50 text-brand-600 p-2.5 rounded-xl group-hover:bg-brand-600 group-hover:text-white transition-colors">
+                                <i data-lucide="globe" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <p class="font-bold text-slate-800 text-lg tracking-tight">{{ dom.name }}</p>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    {% if dom.is_active %}<span class="text-emerald-500">Active</span>{% else %}<span
+                                        class="text-red-500">Suspended</span>{% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-8 py-6">
+                        <div class="flex items-center gap-4">
+                            <div class="flex items-center gap-1.5">
+                                <i data-lucide="arrow-up-right" class="w-3.5 h-3.5 text-blue-500"></i>
+                                <span class="font-bold text-slate-700">{{ dom.sent }}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <i data-lucide="arrow-down-left" class="w-3.5 h-3.5 text-emerald-500"></i>
+                                <span class="font-bold text-slate-700">{{ dom.received }}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-8 py-6">
+                        <p class="text-xs font-medium text-slate-600 truncate max-w-[150px]"
+                            title="{{ dom.top_sender }}">
+                            {{ dom.top_sender }}
+                        </p>
+                    </td>
+                    <td class="px-8 py-6 text-right">
+                        <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                                onclick="openDomainSettings('{{ dom.id }}', '{{ dom.name|escapejs }}', '{{ dom.max_users }}', '{{ dom.max_aliases }}', '{{ dom.is_active|yesno:'true,false' }}')"
+                                class="p-2.5 bg-slate-50 text-slate-500 hover:bg-slate-900 hover:text-white rounded-xl transition-all"
+                                title="Domain Settings">
+                                <i data-lucide="settings" class="w-4 h-4"></i>
+                            </button>
+                            <a href="#"
+                                class="bg-brand-50 text-brand-700 px-4 py-2 rounded-xl text-xs font-bold hover:bg-brand-600 hover:text-white transition-all">
+                                Monitor
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" class="p-16 text-center">
+                        <div class="flex flex-col items-center gap-4">
+                            <div class="bg-slate-100 p-4 rounded-full text-slate-400">
+                                <i data-lucide="search-x" class="w-10 h-10"></i>
+                            </div>
+                            <p class="text-slate-500 font-medium">No domains found in the system cluster</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<!-- Domain Settings Modal -->
+<div id="domainSettingsModal"
+    class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+    <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg p-10 animate-slide-in relative overflow-hidden">
+        <div class="absolute -top-10 -right-10 w-32 h-32 bg-brand-50 rounded-full blur-3xl opacity-60"></div>
+
+        <div class="relative z-10">
+            <div class="flex justify-between items-start mb-8">
+                <div>
+                    <h3 class="text-2xl font-extrabold text-slate-800 tracking-tight" id="modalDomainName">Domain
+                        Settings</h3>
+                    <p class="text-slate-500 font-medium mt-1">Configure limits and status for this domain</p>
+                </div>
+                <button onclick="document.getElementById('domainSettingsModal').classList.add('hidden')"
+                    class="bg-slate-50 hover:bg-slate-100 p-2 rounded-xl text-slate-400 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form hx-post="{% url 'update_domain' %}" hx-target="#messages"
+                hx-on::after-request="document.getElementById('domainSettingsModal').classList.add('hidden')"
+                class="space-y-6">
+                {% csrf_token %}
+                <input type="hidden" name="domain_id" id="modalDomainId">
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Max
+                            Mailboxes</label>
+                        <input type="number" name="max_users" id="modalMaxUsers" required
+                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-500 transition-all font-medium text-slate-700">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Max
+                            Aliases</label>
+                        <input type="number" name="max_aliases" id="modalMaxAliases" required
+                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-500 transition-all font-medium text-slate-700">
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <input type="checkbox" name="is_active" id="modalIsActive"
+                        class="w-5 h-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                    <label for="modalIsActive" class="text-sm font-bold text-slate-700">Domain Active</label>
+                </div>
+
+                <div class="pt-4 flex items-center gap-4">
+                    <button type="button"
+                        onclick="document.getElementById('domainSettingsModal').classList.add('hidden')"
+                        class="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold py-4 px-6 rounded-2xl transition-all">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="flex-[2] bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 px-6 rounded-2xl shadow-lg transition-all transform active:scale-95 flex items-center justify-center gap-2">
+                        <span>Save Configuration</span>
+                        <i data-lucide="check" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openDomainSettings(id, name, maxUsers, maxAliases, isActive) {
+        document.getElementById('modalDomainId').value = id;
+        document.getElementById('modalDomainName').textContent = name;
+        document.getElementById('modalMaxUsers').value = maxUsers;
+        document.getElementById('modalMaxAliases').value = maxAliases;
+        document.getElementById('modalIsActive').checked = (isActive === 'true');
+        document.getElementById('domainSettingsModal').classList.remove('hidden');
+    }
+</script>
+{% endblock %}

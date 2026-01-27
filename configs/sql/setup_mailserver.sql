@@ -1,0 +1,31 @@
+CREATE DATABASE IF NOT EXISTS mailserver CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'mailuser'@'localhost' IDENTIFIED BY 'ChangeMe123!';
+GRANT ALL PRIVILEGES ON mailserver.* TO 'mailuser'@'localhost';
+FLUSH PRIVILEGES;
+
+USE mailserver;
+
+CREATE TABLE IF NOT EXISTS domains (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL,
+    UNIQUE (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    domain_id INT NOT NULL,
+    password VARCHAR(106) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    UNIQUE (email),
+    FOREIGN KEY (domain_id) REFERENCES domains(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS aliases (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    domain_id INT NOT NULL,
+    source VARCHAR(100) NOT NULL,
+    destination VARCHAR(100) NOT NULL,
+    FOREIGN KEY (domain_id) REFERENCES domains(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO domains (name) VALUES ('zimprices.co.zw') ON DUPLICATE KEY UPDATE name=name;

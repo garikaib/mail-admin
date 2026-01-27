@@ -1,0 +1,55 @@
+<!-- Sidebar Partial -->
+<aside class="w-72 flex-none bg-white border-r border-slate-200 flex flex-col page-transition">
+    <div class="p-6">
+        <nav class="space-y-1">
+            {% if user.is_superuser %}
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Super Admin</p>
+            <a href="{% url 'dashboard' %}"
+                class="flex items-center gap-3 px-4 py-3 {% if request.resolver_match.url_name == 'dashboard' %}bg-brand-50 text-brand-600 font-semibold{% else %}text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium{% endif %} rounded-xl transition-all group">
+                <i data-lucide="layout-grid"
+                    class="w-5 h-5 {% if request.resolver_match.url_name == 'dashboard' %}{% else %}group-hover:rotate-6{% endif %} transition-transform"></i>
+                <span>All Domains</span>
+            </a>
+            <a href="{% url 'server_health' %}"
+                class="flex items-center gap-3 px-4 py-3 {% if request.resolver_match.url_name == 'server_health' %}bg-brand-50 text-brand-600 font-semibold{% else %}text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium{% endif %} rounded-xl transition-all group">
+                <i data-lucide="server"
+                    class="w-5 h-5 {% if request.resolver_match.url_name == 'server_health' %}{% else %}group-hover:scale-110{% endif %} transition-transform"></i>
+                <span>Server Health</span>
+            </a>
+            {% else %}
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Management</p>
+            <a href="{% url 'dashboard' %}"
+                class="flex items-center gap-3 px-4 py-3 bg-brand-50 text-brand-600 rounded-xl font-semibold transition-all">
+                <i data-lucide="users" class="w-5 h-5"></i>
+                <span>Email Users</span>
+            </a>
+            <a href="#"
+                class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-xl font-medium transition-all group">
+                <i data-lucide="forward" class="w-5 h-5 group-hover:rotate-12 transition-transform"></i>
+                <span>Mail Aliases</span>
+            </a>
+            {% endif %}
+
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-8 mb-4">System</p>
+            <a href="{% url 'audit_logs' %}"
+                class="flex items-center gap-3 px-4 py-3 {% if request.resolver_match.url_name == 'audit_logs' %}bg-brand-50 text-brand-600 font-semibold{% else %}text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium{% endif %} rounded-xl transition-all group">
+                <i data-lucide="activity"
+                    class="w-5 h-5 {% if request.resolver_match.url_name == 'audit_logs' %}{% else %}group-hover:rotate-12 transition-transform{% endif %}"></i>
+                <span>Audit Logs</span>
+            </a>
+            <a href="{% url 'system_logs' %}"
+                class="flex items-center gap-3 px-4 py-3 {% if request.resolver_match.url_name == 'system_logs' %}bg-brand-50 text-brand-600 font-semibold{% else %}text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium{% endif %} rounded-xl transition-all group">
+                <i data-lucide="terminal"
+                    class="w-5 h-5 {% if request.resolver_match.url_name == 'system_logs' %}{% else %}group-hover:scale-110 transition-transform{% endif %}"></i>
+                <span>System Logs</span>
+            </a>
+        </nav>
+    </div>
+
+    <div class="mt-auto p-6 border-t border-slate-100">
+        <div class="flex items-center gap-3">
+            <div class="bg-emerald-500 w-2 h-2 rounded-full animate-pulse"></div>
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-widest">Cluster Online</span>
+        </div>
+    </div>
+</aside>

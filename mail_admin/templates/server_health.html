@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% include "partials/sidebar.html" %}
+
+<!-- Main Page Content -->
+<main class="flex-1 overflow-y-auto bg-slate-50 p-8 space-y-8 animate-fade-in">
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h2 class="text-3xl font-extrabold text-slate-800 tracking-tight">Server Health</h2>
+            <p class="text-slate-500 font-medium">Real-time status of critical mail infrastructure</p>
+        </div>
+
+        <div class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-sm">
+            <div class="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></div>
+            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Live Monitoring Active</span>
+        </div>
+    </div>
+
+    <!-- Metrics Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- CPU Card -->
+        <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden group">
+            <div
+                class="absolute -top-10 -right-10 w-32 h-32 bg-emerald-50 rounded-full blur-3xl opacity-60 group-hover:scale-110 transition-transform">
+            </div>
+            <div class="relative z-10">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="bg-emerald-50 text-emerald-600 p-4 rounded-2xl">
+                        <i data-lucide="cpu" class="w-8 h-8"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Processor Load</span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <p class="text-5xl font-black text-slate-800">{{ health.cpu_usage|default:"0" }}%</p>
+                    <p class="text-xs font-bold text-slate-400">Total Utilization</p>
+                </div>
+                <div class="w-full h-2 bg-slate-100 rounded-full mt-6 overflow-hidden">
+                    <div class="bg-emerald-500 h-full transition-all duration-1000"
+                        style="width: {{ health.cpu_usage|default:0 }}%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RAM Card -->
+        <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden group">
+            <div
+                class="absolute -top-10 -right-10 w-32 h-32 bg-blue-50 rounded-full blur-3xl opacity-60 group-hover:scale-110 transition-transform">
+            </div>
+            <div class="relative z-10">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="bg-blue-50 text-blue-600 p-4 rounded-2xl">
+                        <i data-lucide="hard-drive" class="w-8 h-8"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Memory Usage</span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <p class="text-5xl font-black text-slate-800">{{ health.ram_usage|default:"0" }}%</p>
+                    <p class="text-xs font-bold text-slate-400">Physical RAM</p>
+                </div>
+                <div class="w-full h-2 bg-slate-100 rounded-full mt-6 overflow-hidden">
+                    <div class="bg-blue-500 h-full transition-all duration-1000"
+                        style="width: {{ health.ram_usage|default:0 }}%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Disk Card -->
+        <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden group">
+            <div
+                class="absolute -top-10 -right-10 w-32 h-32 bg-amber-50 rounded-full blur-3xl opacity-60 group-hover:scale-110 transition-transform">
+            </div>
+            <div class="relative z-10">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="bg-amber-50 text-amber-600 p-4 rounded-2xl">
+                        <i data-lucide="database" class="w-8 h-8"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Storage Status</span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <p class="text-5xl font-black text-slate-800">{{ health.disk_usage|default:"0" }}%</p>
+                    <p class="text-xs font-bold text-slate-400">Root Partition</p>
+                </div>
+                <div class="w-full h-2 bg-slate-100 rounded-full mt-6 overflow-hidden">
+                    <div class="bg-amber-500 h-full transition-all duration-1000"
+                        style="width: {{ health.disk_usage|default:0 }}%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Service Health Table -->
+    <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-8 border-b border-slate-100">
+            <h3 class="text-xl font-bold text-slate-800">Critical Services</h3>
+            <p class="text-sm text-slate-500 font-medium mt-1">Status of the core mail server components</p>
+        </div>
+        <table class="w-full text-left border-collapse">
+            <thead class="bg-slate-50 text-slate-400 font-bold">
+                <tr>
+                    <th class="px-8 py-5 text-[10px] uppercase tracking-[0.2em]">Service Name</th>
+                    <th class="px-8 py-5 text-[10px] uppercase tracking-[0.2em]">Status</th>
+                    <th class="px-8 py-5 text-[10px] uppercase tracking-[0.2em]">Last Check</th>
+                    <th class="px-8 py-5 text-right text-[10px] uppercase tracking-[0.2em]">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+                {% for service in services %}
+                <tr class="hover:bg-slate-50/50 transition-all group">
+                    <td class="px-8 py-6">
+                        <div class="flex items-center gap-3">
+                            <div
+                                class="{% if service.active %}bg-brand-50 text-brand-600{% else %}bg-red-50 text-red-600{% endif %} p-2.5 rounded-xl">
+                                <i data-lucide="{% if service.active %}check-circle-2{% else %}x-circle{% endif %}"
+                                    class="w-5 h-5"></i>
+                            </div>
+                            <span class="font-bold text-slate-800 tracking-tight">{{ service.name }}</span>
+                        </div>
+                    </td>
+                    <td class="px-8 py-6">
+                        <span
+                            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest {% if service.active %}bg-emerald-50 text-emerald-600{% else %}bg-red-50 text-red-600{% endif %}">
+                            <span
+                                class="w-1.5 h-1.5 rounded-full {% if service.active %}bg-emerald-500 animate-pulse{% else %}bg-red-500{% endif %}"></span>
+                            {{ service.status }}
+                        </span>
+                    </td>
+                    <td class="px-8 py-6 text-sm font-medium text-slate-500 italic">
+                        Real-time
+                    </td>
+                    <td class="px-8 py-6 text-right">
+                        {% if service.name == 'Postfix (MTA)' or service.name == 'Dovecot (IMAP/POP)' %}
+                        <a href="{% url 'system_logs' %}?service=mail"
+                            class="bg-slate-50 text-slate-400 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all inline-block">
+                            View Logs
+                        </a>
+                        {% elif service.name == 'Nginx (Web Server)' %}
+                        <a href="{% url 'system_logs' %}?service=nginx"
+                            class="bg-slate-50 text-slate-400 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all inline-block">
+                            View Logs
+                        </a>
+                        {% elif service.name == 'Mail Admin (Gunicorn)' %}
+                        <a href="{% url 'system_logs' %}?service=app"
+                            class="bg-slate-50 text-slate-400 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all inline-block">
+                            View Logs
+                        </a>
+                        {% else %}
+                        <button
+                            class="bg-slate-50 text-slate-400 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest cursor-not-allowed opacity-50">
+                            View Logs
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- System Info Footer -->
+    <div
+        class="flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-900 text-white p-8 rounded-[2.5rem]">
+        <div class="flex items-center gap-4">
+            <div class="bg-white/10 p-4 rounded-2xl">
+                <i data-lucide="clock" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Current Uptime</p>
+                <p class="text-xl font-bold">{{ health.uptime|default:"N/A" }}</p>
+            </div>
+        </div>
+        <div class="text-right">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Infrastructure Hub</p>
+            <p class="text-slate-300 font-medium">Ubuntu 22.04 LTS | Cloud Cluster A1</p>
+        </div>
+    </div>
+</main>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% include "partials/sidebar.html" %}
+
+<!-- Main Page Content -->
+<main class="flex-1 overflow-y-auto bg-slate-50 p-8 space-y-8 animate-fade-in">
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h2 class="text-3xl font-extrabold text-slate-800 tracking-tight">Audit Logs</h2>
+            <p class="text-slate-500 font-medium">Tracking all administrative actions across the platform</p>
+        </div>
+
+        <div class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-sm">
+            <i data-lucide="shield" class="w-4 h-4 text-brand-600"></i>
+            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Immutable Activity Record</span>
+        </div>
+    </div>
+
+    <!-- Audit Table Card -->
+    <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <div>
+                <h3 class="text-xl font-bold text-slate-800">Recent Activity</h3>
+                <p class="text-sm text-slate-500 font-medium mt-1">Showing the last 100 administrative events</p>
+            </div>
+            <div class="flex gap-2">
+                <input type="text" placeholder="Search logs..."
+                    class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20">
+            </div>
+        </div>
+
+        <table class="w-full text-left border-collapse">
+            <thead class="bg-slate-50 text-slate-400 font-bold">
+                <tr>
+                    <th class="px-8 py-5 text-[10px] uppercase tracking-[0.2em]">Timestamp</th>
+                    <th class="px-8 py-5 text-[10px] uppercase tracking-[0.2em]">Admin</th>
+                    <th class="px-8 py-5 text-[10px] uppercase tracking-[0.2em]">Action</th>
+                    <th class="px-8 py-5 text-[10px] uppercase tracking-[0.2em]">Target</th>
+                    <th class="px-8 py-5 text-[10px] uppercase tracking-[0.2em]">Details</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+                {% for log in logs %}
+                <tr class="hover:bg-slate-50/50 transition-all group">
+                    <td class="px-8 py-6">
+                        <span class="text-xs font-bold text-slate-400 font-mono">{{ log.timestamp|date:"Y-m-d H:i:s"
+                            }}</span>
+                    </td>
+                    <td class="px-8 py-6">
+                        <div class="flex items-center gap-2">
+                            <div
+                                class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center border border-slate-200">
+                                <i data-lucide="user" class="w-4 h-4 text-slate-400"></i>
+                            </div>
+                            <span class="font-bold text-slate-700 text-sm tracking-tight">{{ log.admin_email }}</span>
+                        </div>
+                    </td>
+                    <td class="px-8 py-6">
+                        <span
+                            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600">
+                            {{ log.action }}
+                        </span>
+                    </td>
+                    <td class="px-8 py-6">
+                        <span class="text-sm font-bold text-slate-800">{{ log.target }}</span>
+                    </td>
+                    <td class="px-8 py-6">
+                        <span class="text-xs font-medium text-slate-500 italic">{{ log.details|default:"-" }}</span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="px-8 py-12 text-center text-slate-400 italic font-medium">
+                        No logs recorded yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</main>
+{% endblock %}

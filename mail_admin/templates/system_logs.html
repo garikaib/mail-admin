@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% include "partials/sidebar.html" %}
+
+<!-- Main Page Content -->
+<main class="flex-1 overflow-y-auto bg-slate-50 p-8 space-y-8 animate-fade-in">
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h2 class="text-3xl font-extrabold text-slate-800 tracking-tight">System Logs</h2>
+            <p class="text-slate-500 font-medium">Live terminal-style view of infrastructure services</p>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <!-- Service Selector -->
+            <form method="GET"
+                class="flex items-center gap-2 bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
+                <select name="service" onchange="this.form.submit()"
+                    class="bg-transparent border-none text-xs font-bold text-slate-700 focus:ring-0 cursor-pointer px-4">
+                    <option value="mail" {% if current_service == 'mail' %}selected{% endif %}>Postfix / Dovecot</option>
+                    <option value="nginx" {% if current_service == 'nginx' %}selected{% endif %}>Nginx Error Logs</option>
+                    <option value="app" {% if current_service == 'app' %}selected{% endif %}>Gunicorn (App)</option>
+                </select>
+            </form>
+
+            <div
+                class="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl shadow-lg shadow-slate-200">
+                <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                <span class="text-[10px] font-bold uppercase tracking-widest">Live Stream</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log Console Card -->
+    <div class="bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-800">
+        <!-- Console Toolbar -->
+        <div class="bg-white/5 px-8 py-4 border-b border-white/5 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <div class="flex gap-1.5">
+                    <div class="w-2.5 h-2.5 bg-red-500/50 rounded-full"></div>
+                    <div class="w-2.5 h-2.5 bg-amber-500/50 rounded-full"></div>
+                    <div class="w-2.5 h-2.5 bg-emerald-500/50 rounded-full"></div>
+                </div>
+                <!-- Cleaned up template tag for console output -->
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-2">Console Output: {{ current_service }}.log</span>
+            </div>
+
+            <form method="GET" class="flex items-center gap-4">
+                <input type="hidden" name="service" value="{{ current_service }}">
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold text-slate-500">LINES</span>
+                    <select name="lines" onchange="this.form.submit()"
+                        class="bg-white/5 border-none text-[10px] font-bold text-white rounded-lg focus:ring-0 p-1">
+                        <option value="50" {% if current_lines == 50 %}selected{% endif %}>50</option>
+                        <option value="100" {% if current_lines == 100 %}selected{% endif %}>100</option>
+                        <option value="300" {% if current_lines == 300 %}selected{% endif %}>300</option>
+                    </select>
+                </div>
+                <div class="h-4 w-px bg-white/10"></div>
+                <div class="flex items-center gap-2">
+                    <i data-lucide="filter" class="w-3.5 h-3.5 text-slate-500"></i>
+                    <input type="text" name="filter" value="{{ current_filter }}" placeholder="Filter logs..."
+                        class="bg-white/5 border-none text-xs font-medium text-white placeholder-white/20 rounded-lg focus:ring-0 px-3 py-1 w-40">
+                </div>
+                <button type="submit" class="hidden"></button>
+            </form>
+        </div>
+
+        <!-- Log Display Area -->
+        <div class="p-8 font-mono text-xs leading-relaxed"
+            hx-get="{% url 'system_logs' %}?service={{ current_service }}&lines={{ current_lines }}&filter={{ current_filter }}"
+            hx-trigger="every 5s" hx-target="#log-stream">
+            <div id="log-stream" class="text-slate-300 overflow-x-auto whitespace-pre">
+                <pre class='text-xs font-mono text-slate-300 bg-slate-900 p-4 rounded-xl overflow-x-auto'>{{ log_content }}</pre>
+            </div>
+        </div>
+
+        <!-- Bottom Status -->
+        <div class="bg-white/5 px-8 py-3 border-t border-white/5 flex justify-between items-center">
+            <p class="text-[10px] font-bold text-slate-500 italic">Self-refreshing every 5 seconds</p>
+            <button onclick="window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'})"
+                class="text-[10px] font-bold text-slate-400 hover:text-white transition-colors flex items-center gap-2 uppercase tracking-widest">
+                <span>Jump to End</span>
+                <i data-lucide="arrow-down" class="w-3 h-3"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Tooltip Card -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-brand-50 p-6 rounded-3xl border border-brand-100 flex gap-4">
+            <div class="bg-brand-500 text-white p-3 rounded-2xl h-fit">
+                <i data-lucide="info" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <h4 class="font-bold text-brand-900">How to use Log Parsing</h4>
+                <p class="text-sm text-brand-700/80 mt-1 leading-relaxed">
+                    Use the filter bar to isolate specific events. For example, typing <b>"auth failure"</b> in Mail
+                    logs will highlight potential brute-force attempts.
+                </p>
+            </div>
+        </div>
+        <div class="bg-emerald-50 p-6 rounded-3xl border border-emerald-100 flex gap-4">
+            <div class="bg-emerald-500 text-white p-3 rounded-2xl h-fit">
+                <i data-lucide="shield-check" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <h4 class="font-bold text-emerald-900">Infrastructure Privacy</h4>
+                <p class="text-sm text-emerald-700/80 mt-1 leading-relaxed">
+                    These logs are streamed securely from the cluster. Ensure you protect this admin access as logs may
+                    contain sensitive metadata.
+                </p>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
