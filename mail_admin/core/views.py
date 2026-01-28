@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.contrib import messages
 from django.http import HttpResponse
-from .models import MailUser, MailAlias, MailDomain, AdminLog, DomainStats, ServerHealth
+from .models import MailDomain, MailUser, MailAlias, AdminLog, DomainStats, ServerHealth, MailPlan, DomainAllocation
 from .auth_backend import CheckMailServerBackend
 import secrets
 import string
@@ -14,6 +14,7 @@ import subprocess
 from passlib.hash import sha512_crypt
 import requests
 from django.conf import settings
+import json
 
 # --- Helper Functions ---
 
@@ -62,6 +63,18 @@ def verify_turnstile(token):
         print(f"Turnstile Error: {e}")
         return False
 
+def get_effective_plan(domain_name):
+    """
+    Get the effective MailPlan for a domain.
+    Falls back to 'Standard' if no allocation exists.
+    """
+    try:
+        alloc = DomainAllocation.objects.select_related('plan').get(domain_name=domain_name)
+        return alloc.plan
+    except DomainAllocation.DoesNotExist:
+        # Fallback to Standard
+        return MailPlan.objects.filter(name="Standard").first()
+
 # --- Views ---
 
 def login_view(request):
@@ -98,24 +111,70 @@ def dashboard(request):
         domains = MailDomain.objects.using('mail_data').all()
         health = ServerHealth.objects.using('mail_data').order_by('-id').first()
         
-        # Merge domain data with stats
+        # Merge domain data with stats and Plans
         domain_list = []
         for dom in domains:
             stats = DomainStats.objects.using('mail_data').filter(domain_name=dom.name).first()
+            
+            # Fetch Effective Plan
+            plan_obj = get_effective_plan(dom.name)
+            current_plan = plan_obj.name if plan_obj else "Custom"
+            
+            # Use Plan limits for display
+            display_max_users = plan_obj.max_users if plan_obj else dom.max_users
+            display_max_aliases = plan_obj.max_aliases if plan_obj else dom.max_aliases
+                
             domain_list.append({
                 'id': dom.id,
                 'name': dom.name,
-                'max_users': dom.max_users,
-                'max_aliases': dom.max_aliases,
+                'max_users': display_max_users,
+                'max_aliases': display_max_aliases,
                 'is_active': dom.is_active,
                 'sent': stats.sent_count if stats else 0,
                 'received': stats.received_count if stats else 0,
-                'top_sender': stats.top_sender if stats else "N/A"
+                'top_sender': stats.top_sender if stats else "N/A",
+                'plan_name': current_plan
             })
+            
+        # --- Filtering & Sorting ---
+        query = request.GET.get('q', '').lower()
+        status_filter = request.GET.get('status', 'all')
+        sort_by = request.GET.get('sort', 'name_asc')
+
+        # 1. Filtering
+        if query:
+            domain_list = [d for d in domain_list if query in d['name'].lower()]
+            
+        if status_filter == 'active':
+            domain_list = [d for d in domain_list if d['is_active']]
+        elif status_filter == 'suspended':
+            domain_list = [d for d in domain_list if not d['is_active']]
+
+        # 2. Sorting
+        sort_key = 'name'
+        reverse = False
+        
+        if sort_by == 'name_desc':
+            sort_key = 'name'
+            reverse = True
+        elif sort_by == 'usage_high':
+            sort_key = 'sent' # Rough proxy for usage
+            reverse = True
+        elif sort_by == 'usage_low':
+            sort_key = 'sent'
+            reverse = False
+            
+        domain_list.sort(key=lambda x: x[sort_key], reverse=reverse)
+            
+        plans = MailPlan.objects.all()
             
         return render(request, 'dashboard_super.html', {
             'domains': domain_list,
-            'health': health
+            'plans': plans,
+            'health': health,
+            'current_q': query,
+            'current_status': status_filter,
+            'current_sort': sort_by
         })
     
     # Regular Admin Dashboard
@@ -166,10 +225,13 @@ def add_user(request):
         
     email = f"{username}@{domain_name}"
     
-    # Check Limits
+    # Check Plan Limits
+    plan = get_effective_plan(domain_name)
+    max_users = plan.max_users if plan else domain.max_users
+    
     current_count = MailUser.objects.using('mail_data').filter(domain=domain).count()
-    if current_count >= domain.max_users:
-        messages.error(request, f"Limit reached: This domain is capped at {domain.max_users} mailboxes.")
+    if current_count >= max_users:
+        messages.error(request, f"Limit reached: This domain's plan is capped at {max_users} mailboxes.")
         return user_list(request)
 
     # Check existence
@@ -183,12 +245,17 @@ def add_user(request):
     if not password_hash.startswith('{SHA512-CRYPT}'):
         password_hash = f"{{SHA512-CRYPT}}{password_hash}"
 
-    # DB Insert
+    # DB Insert with Plan-Enforced Quota
+    quota_kb = 1048576 # Default 1GB
+    if plan:
+        quota_kb = plan.quota_mb * 1024
+        
     MailUser.objects.using('mail_data').create(
         email=email,
         password=password_hash,
         name=display_name,
-        domain=domain
+        domain=domain,
+        quota_kb=quota_kb
     )
     
     # Maildir Creation (Local Filesystem)
@@ -206,6 +273,73 @@ def add_user(request):
     messages.success(request, f"User {email} created. Password: {password}")
     
     return user_list(request)
+
+@login_required
+@require_http_methods(["POST"])
+def add_alias(request):
+    domain_name = get_admin_domain(request.user)
+    domain = MailDomain.objects.using('mail_data').get(name=domain_name)
+    
+    source_username = request.POST.get('source')
+    destination = request.POST.get('destination')
+    
+    if not source_username or not destination:
+        return HttpResponse("Source and Destination required", status=400)
+        
+    source = f"{source_username}@{domain_name}"
+    
+    # Check Plan Limits
+    plan = get_effective_plan(domain_name)
+    max_aliases = plan.max_aliases if plan else domain.max_aliases
+    
+    current_count = MailAlias.objects.using('mail_data').filter(domain=domain, managed_by_platform=True).count()
+    if current_count >= max_aliases:
+        messages.error(request, f"Limit reached: This domain's plan is capped at {max_aliases} aliases.")
+        return alias_list(request)
+
+    # Check existence
+    if MailAlias.objects.using('mail_data').filter(source=source, destination=destination).exists():
+        messages.error(request, f"Alias {source} -> {destination} already exists.")
+        return alias_list(request)
+        
+    MailAlias.objects.using('mail_data').create(
+        source=source,
+        destination=destination,
+        domain=domain,
+        managed_by_platform=True
+    )
+
+    audit_log(request.user, "CREATE_ALIAS", source, f"To: {destination}")
+    messages.success(request, f"Alias {source} -> {destination} created.")
+    
+    return alias_list(request)
+
+@login_required
+@require_http_methods(["POST"])
+def delete_alias(request, alias_id):
+    domain_name = get_admin_domain(request.user)
+    alias = get_object_or_404(MailAlias.objects.using('mail_data'), id=alias_id)
+    
+    # Security Check
+    if alias.domain.name != domain_name and not request.user.is_superuser:
+        return HttpResponse("Unauthorized", status=403)
+        
+    source = alias.source
+    dest = alias.destination
+    alias.delete(using='mail_data')
+    
+    audit_log(request.user, "DELETE_ALIAS", source, f"To: {dest}")
+    messages.success(request, f"Alias {source} -> {dest} removed.")
+    
+    return alias_list(request)
+
+@login_required
+def alias_list(request):
+    """Return the updated alias list fragment for HTMX."""
+    domain_name = get_admin_domain(request.user)
+    domain = MailDomain.objects.using('mail_data').get(name=domain_name)
+    aliases = MailAlias.objects.using('mail_data').filter(domain=domain, managed_by_platform=True).order_by('source')
+    return render(request, 'partials/alias_list.html', {'aliases': aliases})
 
 @login_required
 @require_http_methods(["DELETE"])
@@ -242,29 +376,78 @@ def reset_password(request, email):
     return user_list(request)
 @login_required
 @require_http_methods(["POST"])
+@login_required
+@require_http_methods(["POST"])
 def update_domain(request):
-    """Update domain configuration (Super Admin only)."""
+    """Update domain configuration via Plan (Super Admin only)."""
     if not request.user.is_superuser:
         return HttpResponse("Unauthorized", status=403)
         
     domain_id = request.POST.get('domain_id')
-    max_users = request.POST.get('max_users')
-    max_aliases = request.POST.get('max_aliases')
+    plan_id = request.POST.get('plan_id') # New Field
     is_active = request.POST.get('is_active') == 'on'
     
     try:
         domain = MailDomain.objects.using('mail_data').get(id=domain_id)
-        domain.max_users = max_users
-        domain.max_aliases = max_aliases
+        
+        # Resolve Plan
+        plan = MailPlan.objects.get(id=plan_id)
+        
+        # Update DomainAllocation (Default DB)
+        allocation, created = DomainAllocation.objects.update_or_create(
+            domain_name=domain.name,
+            defaults={'plan': plan}
+        )
+        
+        # Enforce on MailDomain (MariaDB)
+        domain.max_users = plan.max_users
+        domain.max_aliases = plan.max_aliases
         domain.is_active = is_active
         domain.save(using='mail_data')
         
-        audit_log(request.user, "UPDATE_DOMAIN", domain.name, f"Users: {max_users}, Aliases: {max_aliases}, Active: {is_active}")
-        messages.success(request, f"Configuration for {domain.name} updated successfully.")
-    except MailDomain.DoesNotExist:
-        messages.error(request, "Domain not found.")
+        # --- CRITICAL: Update existing users' quotas ---
+        new_quota_kb = plan.quota_mb * 1024
+        updated_count = MailUser.objects.using('mail_data').filter(domain=domain).update(quota_kb=new_quota_kb)
         
-    return HttpResponse("") # HTMX will handle message display via #messages
+        # --- CRITICAL: Reload Dovecot to apply new quotas ---
+        try:
+            subprocess.run(["/usr/bin/sudo", "/usr/sbin/doveadm", "reload"], check=True, timeout=10)
+        except Exception as e:
+            messages.warning(request, f"Quotas updated but Dovecot reload failed: {e}")
+        
+        audit_log(request.user, "UPDATE_DOMAIN", domain.name, f"Plan: {plan.name}, Active: {is_active}, Quotas: {updated_count} users updated to {plan.quota_mb}MB")
+        messages.success(request, f"Configuration for {domain.name} updated to {plan.name} Plan. {updated_count} user quotas synced.")
+    except (MailDomain.DoesNotExist, MailPlan.DoesNotExist):
+        messages.error(request, "Domain or Plan not found.")
+        
+    response = HttpResponse("")
+    response['HX-Refresh'] = 'true'
+    response = HttpResponse("")
+    response['HX-Refresh'] = 'true'
+    return response # Refresh the page to reflect changes
+
+@login_required
+def monitor_domain(request, domain_id):
+    """Detailed monitoring view for a specific domain."""
+    if not request.user.is_superuser:
+        return HttpResponse("Unauthorized", status=403)
+        
+    domain = get_object_or_404(MailDomain.objects.using('mail_data'), id=domain_id)
+    stats = DomainStats.objects.using('mail_data').filter(domain_name=domain.name).first()
+    
+    metrics = {}
+    if stats and stats.metrics_json:
+        try:
+            metrics = json.loads(stats.metrics_json)
+        except json.JSONDecodeError:
+            pass
+            
+    return render(request, 'monitor_domain.html', {
+        'domain': domain,
+        'stats': stats,
+        'metrics': metrics
+    })
+
 @login_required
 def server_health(request):
     """Detailed server health and service monitoring."""
@@ -368,3 +551,53 @@ def system_logs(request):
         'current_lines': lines,
         'current_filter': filter_keyword
     })
+
+@login_required
+def manage_plans(request):
+    """View and manage subscription plans."""
+    if not request.user.is_superuser:
+        return HttpResponse("Unauthorized", status=403)
+        
+    if request.method == "POST":
+        plan_id = request.POST.get('plan_id')
+        name = request.POST.get('name')
+        quota_mb = request.POST.get('quota_mb')
+        max_users = request.POST.get('max_users')
+        max_aliases = request.POST.get('max_aliases')
+        
+        defaults = {
+            'quota_mb': quota_mb,
+            'max_users': max_users,
+            'max_aliases': max_aliases
+        }
+        
+        if plan_id:
+            MailPlan.objects.filter(id=plan_id).update(name=name, **defaults)
+            action = "UPDATED"
+        else:
+            MailPlan.objects.create(name=name, **defaults)
+            action = "CREATED"
+            
+        messages.success(request, f"Plan '{name}' {action} successfully.")
+        return redirect('manage_plans')
+
+    plans = MailPlan.objects.all().order_by('quota_mb')
+    return render(request, 'plans.html', {'plans': plans})
+
+@login_required
+def delete_plan(request, plan_id):
+    if not request.user.is_superuser:
+        return HttpResponse("Unauthorized", status=403)
+        
+    try:
+        plan = MailPlan.objects.get(id=plan_id)
+        # Check if used
+        if DomainAllocation.objects.filter(plan=plan).exists():
+            messages.error(request, "Cannot delete plan: It is currently assigned to domains.")
+        else:
+            plan.delete()
+            messages.success(request, "Plan deleted.")
+    except MailPlan.DoesNotExist:
+        pass
+        
+    return redirect('manage_plans')

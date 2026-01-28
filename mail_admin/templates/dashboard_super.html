@@ -70,6 +70,64 @@
         </div>
     </div>
 
+    <!-- Controls Bar -->
+    <div
+        class="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm">
+        <!-- Search -->
+        <div class="w-full md:w-96 relative group">
+            <i data-lucide="search"
+                class="w-5 h-5 absolute left-4 top-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+            <form method="GET" action="." class="w-full">
+                <!-- Preserve other params -->
+                {% if current_status != 'all' %}<input type="hidden" name="status" value="{{ current_status }}">{% endif
+                %}
+                {% if current_sort != 'name_asc' %}<input type="hidden" name="sort" value="{{ current_sort }}">{% endif
+                %}
+
+                <input type="text" name="q" placeholder="Search domains..." value="{{ current_q }}"
+                    class="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-500 transition-all font-medium text-slate-700 placeholder-slate-400">
+            </form>
+        </div>
+
+        <div class="flex gap-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+            <!-- Filter Toggles -->
+            <div class="flex bg-slate-100 p-1 rounded-xl">
+                <a href="?status=all&q={{ current_q }}&sort={{ current_sort }}"
+                    class="px-4 py-2 rounded-lg text-sm font-bold transition-all {% if current_status == 'all' %}bg-white text-slate-800 shadow-sm{% else %}text-slate-500 hover:text-slate-700{% endif %}">
+                    All
+                </a>
+                <a href="?status=active&q={{ current_q }}&sort={{ current_sort }}"
+                    class="px-4 py-2 rounded-lg text-sm font-bold transition-all {% if current_status == 'active' %}bg-white text-emerald-600 shadow-sm{% else %}text-slate-500 hover:text-slate-700{% endif %}">
+                    Active
+                </a>
+                <a href="?status=suspended&q={{ current_q }}&sort={{ current_sort }}"
+                    class="px-4 py-2 rounded-lg text-sm font-bold transition-all {% if current_status == 'suspended' %}bg-white text-red-500 shadow-sm{% else %}text-slate-500 hover:text-slate-700{% endif %}">
+                    Suspended
+                </a>
+            </div>
+
+            <!-- Sort Dropdown -->
+            <form method="GET" action="." class="relative">
+                <input type="hidden" name="q" value="{{ current_q }}">
+                <input type="hidden" name="status" value="{{ current_status }}">
+                <div class="relative">
+                    <i data-lucide="arrow-up-down" class="w-4 h-4 absolute left-3 top-3.5 text-slate-400"></i>
+                    <select name="sort" onchange="this.form.submit()"
+                        class="pl-9 pr-8 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 focus:outline-none focus:ring-4 focus:ring-brand-100 cursor-pointer appearance-none">
+                        <option value="name_asc" {% if current_sort=='name_asc' %}selected{% endif %}>Name (A-Z)
+                        </option>
+                        <option value="name_desc" {% if current_sort=='name_desc' %}selected{% endif %}>Name (Z-A)
+                        </option>
+                        <option value="usage_high" {% if current_sort=='usage_high' %}selected{% endif %}>High Usage
+                        </option>
+                        <option value="usage_low" {% if current_sort=='usage_low' %}selected{% endif %}>Low Usage
+                        </option>
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Domain Table Card -->
     <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden">
         <table class="w-full text-left border-collapse">
@@ -77,9 +135,8 @@
                 <tr>
                     <th class="px-8 py-5 border-b border-slate-100 text-[10px] uppercase tracking-[0.2em]">Domain
                         Property</th>
-                    <th class="px-8 py-5 border-b border-slate-100 text-[10px] uppercase tracking-[0.2em]">Activity
-                        (Sent/Recv)
-                    </th>
+                    <th class="px-8 py-5 border-b border-slate-100 text-[10px] uppercase tracking-[0.2em]">Subscription
+                        Plan & Limits</th>
                     <th class="px-8 py-5 border-b border-slate-100 text-[10px] uppercase tracking-[0.2em]">Top Sender
                     </th>
                     <th class="px-8 py-5 border-b border-slate-100 text-right text-[10px] uppercase tracking-[0.2em]">
@@ -105,14 +162,14 @@
                         </div>
                     </td>
                     <td class="px-8 py-6">
-                        <div class="flex items-center gap-4">
-                            <div class="flex items-center gap-1.5">
-                                <i data-lucide="arrow-up-right" class="w-3.5 h-3.5 text-blue-500"></i>
-                                <span class="font-bold text-slate-700">{{ dom.sent }}</span>
-                            </div>
-                            <div class="flex items-center gap-1.5">
-                                <i data-lucide="arrow-down-left" class="w-3.5 h-3.5 text-emerald-500"></i>
-                                <span class="font-bold text-slate-700">{{ dom.received }}</span>
+                        <div class="flex flex-col gap-1.5">
+                            <span class="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-lg text-xs font-bold w-fit">
+                                {{ dom.plan_name }}
+                            </span>
+                            <div class="flex items-center gap-3 text-xs text-slate-500 font-bold">
+                                <span title="Max Users">{{ dom.max_users }} Users</span>
+                                <span class="w-1 h-1 bg-slate-200 rounded-full"></span>
+                                <span title="Max Aliases">{{ dom.max_aliases }} Aliases</span>
                             </div>
                         </div>
                     </td>
@@ -130,7 +187,7 @@
                                 title="Domain Settings">
                                 <i data-lucide="settings" class="w-4 h-4"></i>
                             </button>
-                            <a href="#"
+                            <a href="{% url 'monitor_domain' dom.id %}"
                                 class="bg-brand-50 text-brand-700 px-4 py-2 rounded-xl text-xs font-bold hover:bg-brand-600 hover:text-white transition-all">
                                 Monitor
                             </a>
@@ -179,19 +236,20 @@
                 {% csrf_token %}
                 <input type="hidden" name="domain_id" id="modalDomainId">
 
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Max
-                            Mailboxes</label>
-                        <input type="number" name="max_users" id="modalMaxUsers" required
-                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-500 transition-all font-medium text-slate-700">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Max
-                            Aliases</label>
-                        <input type="number" name="max_aliases" id="modalMaxAliases" required
-                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-500 transition-all font-medium text-slate-700">
-                    </div>
+                <div>
+                    <label
+                        class="block text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Subscription
+                        Plan</label>
+                    <select name="plan_id" id="modalPlanId" required
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-500 transition-all font-bold text-slate-700 cursor-pointer appearance-none">
+                        {% for plan in plans %}
+                        <option value="{{ plan.id }}">{{ plan.name }} - {{ plan.quota_mb }}MB Quota</option>
+                        {% endfor %}
+                    </select>
+                    <p class="text-[10px] text-slate-400 font-bold mt-2 ml-1 flex items-center gap-1">
+                        <i data-lucide="info" class="w-3 h-3"></i>
+                        <span>This will automatically update Limits & Quotas</span>
+                    </p>
                 </div>
 
                 <div class="flex items-center gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
@@ -221,9 +279,10 @@
     function openDomainSettings(id, name, maxUsers, maxAliases, isActive) {
         document.getElementById('modalDomainId').value = id;
         document.getElementById('modalDomainName').textContent = name;
-        document.getElementById('modalMaxUsers').value = maxUsers;
-        document.getElementById('modalMaxAliases').value = maxAliases;
+        // document.getElementById('modalMaxUsers').value = maxUsers; // Deprecated by Plans
         document.getElementById('modalIsActive').checked = (isActive === 'true');
+
+        // Reset or Select default if logic exists, for now just open
         document.getElementById('domainSettingsModal').classList.remove('hidden');
     }
 </script>

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <a href="{% url 'dashboard' %}" class="text-slate-400 hover:text-indigo-600 transition-colors">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                </a>
+                <h2 class="text-3xl font-extrabold text-slate-800 tracking-tight">{{ domain.name }}</h2>
+            </div>
+            <p class="text-slate-500 font-medium ml-7">Real-time domain traffic analysis</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="px-4 py-2 bg-slate-100 rounded-lg text-sm text-slate-500 font-medium">
+                Last updated: {{ stats.updated_at|date:"M j, H:i" }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Traffic Volume -->
+        <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative overflow-hidden group">
+            <div class="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                <i data-lucide="activity" class="w-24 h-24 text-indigo-600"></i>
+            </div>
+            <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">Traffic Volume</h3>
+
+            <div class="grid grid-cols-2 gap-8">
+                <div>
+                    <div class="flex items-center gap-2 mb-2 text-indigo-600">
+                        <i data-lucide="send" class="w-5 h-5"></i>
+                        <span class="font-bold text-sm">Sent</span>
+                    </div>
+                    <p class="text-4xl font-black text-slate-800 tracking-tight">{{ stats.sent_count }}</p>
+                    <p class="text-xs text-slate-400 mt-1">Emails dispatched</p>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 mb-2 text-emerald-600">
+                        <i data-lucide="inbox" class="w-5 h-5"></i>
+                        <span class="font-bold text-sm">Received</span>
+                    </div>
+                    <p class="text-4xl font-black text-slate-800 tracking-tight">{{ stats.received_count }}</p>
+                    <p class="text-xs text-slate-400 mt-1">Emails delivered</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Senders -->
+        <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative overflow-hidden">
+            <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">Top Senders (Volume)</h3>
+
+            {% if metrics.top_senders %}
+            <div class="space-y-4">
+                {% for sender in metrics.top_senders %}
+                <div class="flex items-center justify-between group">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 font-bold text-xs ring-2 ring-slate-50 group-hover:ring-indigo-50 transition-all">
+                            {{ forloop.counter }}
+                        </div>
+                        <span class="font-bold text-slate-700">{{ sender.email }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="h-1.5 w-24 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-indigo-500 rounded-full" style="width: 100%"></div>
+                            <!-- Simplified width -->
+                        </div>
+                        <span class="text-sm font-bold text-slate-400 w-12 text-right">{{ sender.count }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="flex flex-col items-center justify-center h-32 text-slate-400">
+                <i data-lucide="bar-chart-2" class="w-8 h-8 mb-2 opacity-50"></i>
+                <p class="text-sm font-medium">No sufficient data yet</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

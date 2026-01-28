@@ -57,11 +57,35 @@ class AdminLog(models.Model):
     def __str__(self):
         return f"{self.admin_email} - {self.action} - {self.target}"
 
+# Subscription Plans (Stored in SQLite/Default DB)
+class MailPlan(models.Model):
+    name = models.CharField(max_length=100, unique=True) # Standard, Premium, Ultra
+    max_users = models.IntegerField(default=10)
+    max_aliases = models.IntegerField(default=20) # Usually 2x max_users
+    quota_mb = models.IntegerField(default=500) # Per mailbox quota in MB
+    is_default = models.BooleanField(default=False)
+    
+    def __str__(self):
+        return f"{self.name} ({self.quota_mb}MB)"
+
+class DomainAllocation(models.Model):
+    """
+    Links a Domain (MariaDB) to a Plan (SQLite).
+    We store the domain_name as a string reference because cross-db FKs are tricky.
+    """
+    domain_name = models.CharField(max_length=255, unique=True)
+    plan = models.ForeignKey(MailPlan, on_delete=models.PROTECT)
+    assigned_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.domain_name} -> {self.plan.name}"
+
 class DomainStats(models.Model):
     domain_name = models.CharField(max_length=255, unique=True)
     sent_count = models.IntegerField(default=0)
     received_count = models.IntegerField(default=0)
     top_sender = models.CharField(max_length=255, null=True, blank=True)
+    metrics_json = models.TextField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:

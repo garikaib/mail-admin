@@ -16,25 +16,13 @@ echo "🚀 Starting deployment to $REMOTE_HOST..."
 # 1. Sync files to remote staging
 echo "📦 Syncing files to remote staging..."
 ssh $REMOTE_USER@$REMOTE_HOST "mkdir -p $STAGING_DIR"
-rsync -avz --exclude 'venv' --exclude '__pycache__' --exclude 'db.sqlite3' ./mail_admin/ $REMOTE_USER@$REMOTE_HOST:$STAGING_DIR/
+rsync -avz --exclude 'venv' --exclude '__pycache__' --exclude 'db.sqlite3' ./mail_admin/ ./scripts $REMOTE_USER@$REMOTE_HOST:$STAGING_DIR/
 
 # 2. Remote Execution Block
 echo "🛠️  Running remote setup (using passwordless sudo)..."
 ssh -t $REMOTE_USER@$REMOTE_HOST << 'EOF'
     set -e
     
-    # --- Nuke Old FastHTML Server ---
-    echo "🧹 Cleaning up old FastHTML server..."
-    # Try to stop systemd service if it exists (from previous proposal)
-    sudo systemctl stop mail-admin || true
-    sudo systemctl disable mail-admin || true
-    
-    # Kill any process on port 8000 (common for development/fasthtml)
-    sudo fuser -k 8000/tcp || true
-    
-    # Clean up old project directory if it was different
-    # (Assuming it was in /opt/mail_admin or similar)
-
     # --- Setup Django App ---
     echo "🏗️ Setting up Django environment in /opt/mail_admin..."
     sudo mkdir -p /opt/mail_admin
@@ -46,72 +34,45 @@ ssh -t $REMOTE_USER@$REMOTE_HOST << 'EOF'
     
     # System dependencies
     sudo apt-get update -qq
+    sudo apt-get upgrade -y -qq
     sudo apt-get install -y -qq python3-venv python3-dev libmysqlclient-dev zstd build-essential nginx
 
     # Virtual environment
+    # Robustness check: if venv exists but is broken, delete it
+    if [ -d "venv" ]; then
+        if ! ./venv/bin/python3 -c "import sys" >/dev/null 2>&1; then
+            echo "⚠️  Detected broken venv, recreating..."
+            rm -rf venv
+        fi
+    fi
+
     if [ ! -d "venv" ]; then
+        echo "🐍 Creating virtual environment..."
         python3 -m venv venv
     fi
-    source venv/bin/activate
     
     echo "python dependencies..."
-    pip install -q --upgrade pip
+    ./venv/bin/python3 -m pip install -q --upgrade pip
     # Install dependencies
-    pip install django django-htmx django-compressor passlib[sha512] pymysql gunicorn requests psutil
+    ./venv/bin/python3 -m pip install django django-htmx django-compressor passlib[sha512] pymysql gunicorn requests psutil
 
     # Migrations & Static
     echo "Migrations..."
-    python3 manage.py makemigrations core --noinput
-    python3 manage.py migrate --noinput
+    /opt/mail_admin/venv/bin/python3 manage.py makemigrations core --noinput
+    /opt/mail_admin/venv/bin/python3 manage.py migrate --noinput
+    
+    # DB Schema Update (for monitoring)
+    if [ -f "scripts/update_db_schema.py" ]; then
+        echo "Running DB Schema Update..."
+        /opt/mail_admin/venv/bin/python3 scripts/update_db_schema.py
+    fi
     
     # Ensure static src exists before collectstatic
     mkdir -p static/src
     touch static/src/output.css
 
     echo "Static files..."
-    python3 manage.py collectstatic --noinput
-
-    # --- Nginx Configuration ---
-    echo "🌐 Configuring Nginx for $DOMAIN with SSL..."
-    cat << NGINX_CONF | sudo tee /etc/nginx/sites-available/mail_admin
-server {
-    listen 80;
-    server_name admin.zimprices.co.zw;
-    return 301 https://\$host\$request_uri;
-}
-
-server {
-    listen 443 ssl;
-    server_name admin.zimprices.co.zw;
-
-    ssl_certificate /etc/lego/certificates/zimprices.co.zw.crt;
-    ssl_certificate_key /etc/lego/certificates/zimprices.co.zw.key;
-    
-    ssl_session_timeout 1d;
-    ssl_session_cache shared:SSL:50m;
-    ssl_session_tickets off;
-
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
-    ssl_prefer_server_ciphers off;
-
-    location /static/ {
-        alias /opt/mail_admin/staticfiles/;
-    }
-
-    location / {
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_pass http://127.0.0.1:8000;
-    }
-}
-NGINX_CONF
-
-    sudo ln -sf /etc/nginx/sites-available/mail_admin /etc/nginx/sites-enabled/
-    sudo nginx -t
-    sudo systemctl reload nginx
+    /opt/mail_admin/venv/bin/python3 manage.py collectstatic --noinput
 
     # --- Systemd Service ---
     echo "⚙️ Setting up Systemd service..."
@@ -177,6 +138,7 @@ QUOTA_EOF
 ubuntu ALL=(ALL) NOPASSWD: /usr/bin/tail -n [0-9]* /var/log/mail.log
 ubuntu ALL=(ALL) NOPASSWD: /usr/bin/tail -n [0-9]* /var/log/nginx/error.log
 ubuntu ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u mail-admin -n [0-9]* --no-pager
+ubuntu ALL=(ALL) NOPASSWD: /usr/sbin/doveadm reload
 SUDO_CONF
     sudo chmod 0440 /etc/sudoers.d/mail-admin
 

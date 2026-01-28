@@ -16,6 +16,12 @@
                     class="w-5 h-5 {% if request.resolver_match.url_name == 'server_health' %}{% else %}group-hover:scale-110{% endif %} transition-transform"></i>
                 <span>Server Health</span>
             </a>
+            <a href="{% url 'manage_plans' %}"
+                class="flex items-center gap-3 px-4 py-3 {% if request.resolver_match.url_name == 'manage_plans' %}bg-brand-50 text-brand-600 font-semibold{% else %}text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium{% endif %} rounded-xl transition-all group">
+                <i data-lucide="package"
+                    class="w-5 h-5 {% if request.resolver_match.url_name == 'manage_plans' %}{% else %}group-hover:scale-110{% endif %} transition-transform"></i>
+                <span>Subscription Plans</span>
+            </a>
             {% else %}
             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Management</p>
             <a href="{% url 'dashboard' %}"
