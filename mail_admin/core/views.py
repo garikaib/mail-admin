@@ -367,6 +367,16 @@ def add_alias(request, domain_id):
     if not source_username or not destination:
         return HttpResponse("Source and Destination required", status=400)
     
+    # SECURITY: Validate source username chars
+    if not re.match(r'^[a-zA-Z0-9._-]+$', source_username):
+         messages.error(request, "Invalid source username.")
+         return alias_list(request, domain_id)
+         
+    # SECURITY: Validate destination email format
+    if not re.match(r'[^@]+@[^@]+\.[^@]+', destination):
+         messages.error(request, "Invalid destination email address.")
+         return alias_list(request, domain_id)
+    
     # Check Plan Limits
     plan = get_effective_plan(domain.name)
     if plan:
@@ -427,6 +437,11 @@ def delete_user(request, email):
     # Loophole Fix: Block domain admins from deleting superuser accounts
     if is_protected_account(email) and not request.user.is_superuser:
         return HttpResponseForbidden("Cannot manage protected accounts.")
+
+    # SECURITY: Validate email string format from DB to prevent path traversal
+    if not re.match(r'^[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+$', email):
+         logger.critical(f"Security Alert: Attempt to delete malformed email user: {email}")
+         return HttpResponseForbidden("Security Violation: Malformed email user.")
 
     # 1. Physical Purge (Maildir)
     try:
