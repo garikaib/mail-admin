@@ -15,6 +15,8 @@ urlpatterns = [
     
     path('aliases/add/<int:domain_id>/', views.add_alias, name='add_alias'),
     path('aliases/<int:alias_id>/delete/', views.delete_alias, name='delete_alias'),
+    path('aliases/<int:alias_id>/edit/', views.edit_alias, name='edit_alias'),
+    path('aliases/<int:alias_id>/edit-form/', views.edit_alias_form, name='edit_alias_form'),
     path('aliases/list/<int:domain_id>/', views.alias_list, name='alias_list'),
     
     # Super Admin Actions

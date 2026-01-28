@@ -227,7 +227,8 @@ def manage_domain(request, domain_id):
         protected_emails = list(User.objects.filter(is_superuser=True).values_list('username', flat=True))
         users = users.exclude(email__in=protected_emails)
 
-    aliases = MailAlias.objects.using('mail_data').filter(domain=domain, managed_by_platform=True).order_by('source')
+    # Show ALL aliases (system aliases will be marked in template)
+    aliases = MailAlias.objects.using('mail_data').filter(domain=domain).order_by('source')
     
     # Resource Monitoring
     plan = get_effective_plan(domain.name)
@@ -417,10 +418,80 @@ def alias_list(request, domain_id):
     domain = get_object_or_404(MailDomain.objects.using('mail_data'), id=domain_id)
     if domain.name not in get_managed_domains(request.user):
          return HttpResponseForbidden()
-    aliases = MailAlias.objects.using('mail_data').filter(domain=domain, managed_by_platform=True).order_by('source')
+    # Show ALL aliases (system aliases will be marked in template)
+    aliases = MailAlias.objects.using('mail_data').filter(domain=domain).order_by('source')
     response_html = render_to_string('partials/alias_list.html', {'aliases': aliases, 'domain': domain}, request=request)
     response_html += render_to_string('partials/messages.html', {}, request=request)
     return HttpResponse(response_html)
+
+@login_required
+def edit_alias_form(request, alias_id):
+    """Return a modal form for editing an alias."""
+    alias = get_object_or_404(MailAlias.objects.using('mail_data'), id=alias_id)
+    if alias.domain.name not in get_managed_domains(request.user):
+        return HttpResponseForbidden("Unauthorized")
+    if not alias.managed_by_platform:
+        return HttpResponseForbidden("System aliases cannot be edited.")
+    
+    modal_html = f'''
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" id="edit-alias-overlay" onclick="if(event.target===this) this.remove()">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md animate-slide-in">
+            <h3 class="text-xl font-bold text-slate-800 mb-6">Edit Alias</h3>
+            <form hx-post="/aliases/{alias.id}/edit/" hx-target="#alias-list-container" hx-swap="innerHTML">
+                <input type="hidden" name="csrfmiddlewaretoken" value="{{% csrf_token %}}">
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Source</label>
+                    <input type="text" value="{alias.source}" disabled
+                        class="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 cursor-not-allowed">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Destination</label>
+                    <input type="email" name="destination" value="{alias.destination}" required
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-500">
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" onclick="document.getElementById('edit-alias-overlay').remove()"
+                        class="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="flex-1 py-3 bg-brand-600 text-white font-bold rounded-xl hover:bg-brand-700 transition-colors">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    '''
+    return render(request, 'partials/edit_alias_modal.html', {'alias': alias})
+
+@login_required
+@require_http_methods(["POST"])
+def edit_alias(request, alias_id):
+    """Update an alias's destination."""
+    alias = get_object_or_404(MailAlias.objects.using('mail_data'), id=alias_id)
+    if alias.domain.name not in get_managed_domains(request.user):
+        return HttpResponseForbidden("Unauthorized")
+    if not alias.managed_by_platform:
+        return HttpResponseForbidden("System aliases cannot be edited.")
+    
+    new_destination = request.POST.get('destination', '').strip()
+    
+    # SECURITY: Validate destination email format
+    if not re.match(r'[^@]+@[^@]+\.[^@]+', new_destination):
+        messages.error(request, "Invalid destination email address.")
+        return alias_list(request, alias.domain.id)
+    
+    old_dest = alias.destination
+    alias.destination = new_destination
+    alias.save(using='mail_data')
+    
+    audit_log(request.user, "EDIT_ALIAS", alias.source, f"Changed: {old_dest} -> {new_destination}")
+    messages.success(request, f"Alias {alias.source} updated to forward to {new_destination}.")
+    
+    # Close modal via response
+    response = alias_list(request, alias.domain.id)
+    return response
 
 @login_required
 @require_http_methods(["DELETE"])
