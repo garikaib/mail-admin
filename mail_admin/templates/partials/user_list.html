@@ -33,8 +33,7 @@
                         title="Reset Password">
                         <i data-lucide="key" class="w-4 h-4"></i>
                     </button>
-                    <button hx-delete="{% url 'delete_user' user.email %}" hx-target="#user-list-container"
-                        hx-confirm="Permanently delete {{ user.email }}?"
+                    <button onclick="openDeleteModal('{{ user.email }}', '{% url 'delete_user' user.email %}')"
                         class="p-2.5 bg-slate-50 text-slate-500 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all"
                         title="Delete User">
                         <i data-lucide="trash-2" class="w-4 h-4"></i>

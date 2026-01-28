@@ -19,6 +19,7 @@ class MailUser(models.Model):
     uid = models.CharField(max_length=128, db_column='c_uid', primary_key=True)
     email = models.CharField(max_length=255, db_column='mail', unique=True)
     password = models.CharField(max_length=255, db_column='c_password')
+    full_name = models.CharField(max_length=128, db_column='c_name') # Usually username
     name = models.CharField(max_length=128, db_column='c_cn', null=True, blank=True) # Display Name
     domain = models.ForeignKey(MailDomain, on_delete=models.DO_NOTHING, db_column='domain_id')
     quota_kb = models.IntegerField(default=1048576)
@@ -104,3 +105,21 @@ class ServerHealth(models.Model):
         managed = False
         db_table = 'server_health'
         app_label = 'core'
+
+from django.contrib.auth.models import User
+
+class DomainAssignment(models.Model):
+    """
+    Links a standard Django User (External Admin) to a Domain.
+    This allows a user to manage specific domains without being a superuser.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assignments')
+    domain_name = models.CharField(max_length=255)
+    assigned_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('user', 'domain_name')
+        app_label = 'core'
+
+    def __str__(self):
+        return f"{self.user.username} -> {self.domain_name}"

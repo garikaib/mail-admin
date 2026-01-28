@@ -17,7 +17,8 @@
             <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-emerald-50 rounded-full blur-3xl opacity-60"></div>
 
             <!-- Turnstile Script -->
-            <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+            <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer
+                nonce="{{ request.csp_nonce }}"></script>
 
             <form method="POST" action="{% url 'login' %}" class="relative z-10 space-y-6">
                 {% csrf_token %}
@@ -67,7 +68,7 @@
             </form>
         </div>
 
-        <script>
+        <script nonce="{{ request.csp_nonce }}">
             function onTurnstileSuccess(token) {
                 document.getElementById('login-button').disabled = false;
             }

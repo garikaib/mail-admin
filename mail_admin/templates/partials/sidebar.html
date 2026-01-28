@@ -1,6 +1,16 @@
+<!-- Mobile Overlay -->
+<div id="sidebarOverlay" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden"></div>
+
 <!-- Sidebar Partial -->
-<aside class="w-72 flex-none bg-white border-r border-slate-200 flex flex-col page-transition">
-    <div class="p-6">
+<aside id="sidebar"
+    class="fixed md:relative inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 flex flex-col page-transition transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
+    <!-- Mobile Close Button -->
+    <div class="md:hidden flex justify-end p-4">
+        <button id="sidebarClose" class="p-2 rounded-xl hover:bg-slate-100 text-slate-600">
+            <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+    </div>
+    <div class="p-6 pt-0 md:pt-6">
         <nav class="space-y-1">
             {% if user.is_superuser %}
             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Super Admin</p>
@@ -22,19 +32,12 @@
                     class="w-5 h-5 {% if request.resolver_match.url_name == 'manage_plans' %}{% else %}group-hover:scale-110{% endif %} transition-transform"></i>
                 <span>Subscription Plans</span>
             </a>
-            {% else %}
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Management</p>
-            <a href="{% url 'dashboard' %}"
-                class="flex items-center gap-3 px-4 py-3 bg-brand-50 text-brand-600 rounded-xl font-semibold transition-all">
-                <i data-lucide="users" class="w-5 h-5"></i>
-                <span>Email Users</span>
+            <a href="{% url 'manage_admins' %}"
+                class="flex items-center gap-3 px-4 py-3 {% if request.resolver_match.url_name == 'manage_admins' %}bg-brand-50 text-brand-600 font-semibold{% else %}text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium{% endif %} rounded-xl transition-all group">
+                <i data-lucide="shield"
+                    class="w-5 h-5 {% if request.resolver_match.url_name == 'manage_admins' %}{% else %}group-hover:scale-110{% endif %} transition-transform"></i>
+                <span>Access Control</span>
             </a>
-            <a href="#"
-                class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-xl font-medium transition-all group">
-                <i data-lucide="forward" class="w-5 h-5 group-hover:rotate-12 transition-transform"></i>
-                <span>Mail Aliases</span>
-            </a>
-            {% endif %}
 
             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-8 mb-4">System</p>
             <a href="{% url 'audit_logs' %}"
@@ -49,13 +52,51 @@
                     class="w-5 h-5 {% if request.resolver_match.url_name == 'system_logs' %}{% else %}group-hover:scale-110 transition-transform{% endif %}"></i>
                 <span>System Logs</span>
             </a>
+            {% else %}
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Management</p>
+            <a href="{% url 'dashboard' %}"
+                class="flex items-center gap-3 px-4 py-3 {% if request.resolver_match.url_name == 'dashboard' %}bg-brand-50 text-brand-600 font-semibold{% else %}text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium{% endif %} rounded-xl transition-all group">
+                <i data-lucide="globe" class="w-5 h-5 group-hover:rotate-12 transition-transform"></i>
+                <span>My Domains</span>
+            </a>
+            {% endif %}
+
+            <div class="mt-auto pt-6">
+                <a href="{% url 'logout' %}"
+                    class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors font-medium">
+                    <i data-lucide="log-out" class="w-5 h-5"></i>
+                    <span>Sign Out</span>
+                </a>
+            </div>
         </nav>
     </div>
 
-    <div class="mt-auto p-6 border-t border-slate-100">
+    <div class="p-6 border-t border-slate-100 mt-auto">
         <div class="flex items-center gap-3">
             <div class="bg-emerald-500 w-2 h-2 rounded-full animate-pulse"></div>
             <span class="text-xs font-bold text-slate-500 uppercase tracking-widest">Cluster Online</span>
         </div>
     </div>
 </aside>
+
+<script nonce="{{ request.csp_nonce }}">
+    document.addEventListener('DOMContentLoaded', function () {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        const menuToggle = document.getElementById('mobileMenuToggle');
+        const closeBtn = document.getElementById('sidebarClose');
+
+        function openSidebar() {
+            sidebar.classList.remove('-translate-x-full');
+            overlay.classList.remove('hidden');
+        }
+        function closeSidebar() {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        }
+
+        if (menuToggle) menuToggle.addEventListener('click', openSidebar);
+        if (closeBtn) closeBtn.addEventListener('click', closeSidebar);
+        if (overlay) overlay.addEventListener('click', closeSidebar);
+    });
+</script>

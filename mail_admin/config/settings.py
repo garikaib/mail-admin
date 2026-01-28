@@ -26,7 +26,7 @@ except ImportError:
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-%#m3kg+68!cr26qq6ly6u0vi@%mf7qo83fy=_7r#oskmk-84u+'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'dev-only-insecure-key-change-me')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
@@ -34,9 +34,19 @@ DEBUG = False
 ALLOWED_HOSTS = ['admin.zimprices.co.zw', 'localhost', '127.0.0.1', '51.77.222.232']
 CSRF_TRUSTED_ORIGINS = ['https://admin.zimprices.co.zw']
 
+# Security Hardening
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_HTTPONLY = True
+
 # Cloudflare Turnstile
-TURNSTILE_SITE_KEY = "0x4AAAAAACTKXzb7GlULcNSk"
-TURNSTILE_SECRET_KEY = "0x4AAAAAACTKX__6TE0TE4QMX1t7lT-q9Ro"
+TURNSTILE_SITE_KEY = os.environ.get('TURNSTILE_SITE_KEY', '')
+TURNSTILE_SECRET_KEY = os.environ.get('TURNSTILE_SECRET_KEY', '')
 
 
 # Application definition
@@ -66,6 +76,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django_htmx.middleware.HtmxMiddleware',
+    'core.middleware.CSPNonceMiddleware',  # Security: CSP with nonces
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -89,19 +100,20 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 
 # Database
-# Use SQLite for Django's internal tables (sessions, admin logs)
-# Use MariaDB for the mailserver data
-
-# Mail Server DB Credentials (from scripts/maintenance/mail_admin.py)
-MAIL_DB_HOST = "127.0.0.1"
-MAIL_DB_USER = "mailuser"
-MAIL_DB_PASS = "ChangeMe123!"
-MAIL_DB_NAME = "mailserver"
+# MariaDB is used for both Django internal data and mail server data
+MAIL_DB_HOST = os.environ.get("MAIL_DB_HOST", "127.0.0.1")
+MAIL_DB_USER = os.environ.get("MAIL_DB_USER", "mailuser")
+MAIL_DB_PASS = os.environ.get("MAIL_DB_PASS", "ChangeMe123!")
+MAIL_DB_NAME = os.environ.get("MAIL_DB_NAME", "mailserver")
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': MAIL_DB_NAME,
+        'USER': MAIL_DB_USER,
+        'PASSWORD': MAIL_DB_PASS,
+        'HOST': MAIL_DB_HOST,
+        'PORT': '3306',
     },
     'mail_data': {
         'ENGINE': 'django.db.backends.mysql',

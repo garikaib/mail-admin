@@ -15,6 +15,12 @@ echo "🚀 Starting deployment to $REMOTE_HOST..."
 
 # 1. Sync files to remote staging
 echo "📦 Syncing files to remote staging..."
+if [ ! -f "mail_admin/.env" ]; then
+    echo "❌ Error: mail_admin/.env file not found!"
+    echo "Please create mail_admin/.env with your secrets (TURNSTILE keys, etc.) before deploying."
+    exit 1
+fi
+
 ssh $REMOTE_USER@$REMOTE_HOST "mkdir -p $STAGING_DIR"
 rsync -avz --exclude 'venv' --exclude '__pycache__' --exclude 'db.sqlite3' ./mail_admin/ ./scripts $REMOTE_USER@$REMOTE_HOST:$STAGING_DIR/
 
@@ -30,6 +36,12 @@ ssh -t $REMOTE_USER@$REMOTE_HOST << 'EOF'
     
     # Sync from staging to /opt/
     rsync -av ~/mail_admin_staging/ /opt/mail_admin/
+    
+    # Explicitly ensure .env is secure
+    if [ -f "/opt/mail_admin/.env" ]; then
+        chmod 600 /opt/mail_admin/.env
+    fi
+
     cd /opt/mail_admin
     
     # System dependencies
@@ -60,12 +72,14 @@ ssh -t $REMOTE_USER@$REMOTE_HOST << 'EOF'
     echo "Migrations..."
     /opt/mail_admin/venv/bin/python3 manage.py makemigrations core --noinput
     /opt/mail_admin/venv/bin/python3 manage.py migrate --noinput
+    /opt/mail_admin/venv/bin/python3 manage.py migrate --database=default --noinput
     
     # DB Schema Update (for monitoring)
     if [ -f "scripts/update_db_schema.py" ]; then
         echo "Running DB Schema Update..."
         /opt/mail_admin/venv/bin/python3 scripts/update_db_schema.py
     fi
+
     
     # Ensure static src exists before collectstatic
     mkdir -p static/src
@@ -85,7 +99,8 @@ After=network.target
 User=ubuntu
 Group=ubuntu
 WorkingDirectory=/opt/mail_admin
-Environment="PATH=/opt/mail_admin/venv/bin"
+Environment="PATH=/opt/mail_admin/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+EnvironmentFile=/opt/mail_admin/.env
 ExecStart=/opt/mail_admin/venv/bin/gunicorn --workers 3 --bind 127.0.0.1:8000 config.wsgi:application
 
 [Install]
@@ -120,26 +135,39 @@ plugin {
 QUOTA_EOF
 
     sudo systemctl restart dovecot
-    sudo systemctl restart postfix
+    # --- Postfix Hardening ---
+    echo "🛡️  Running Postfix hardening..."
+    if [ -f "/opt/mail_admin/scripts/maintenance/harden_postfix.sh" ]; then
+        sudo bash /opt/mail_admin/scripts/maintenance/harden_postfix.sh
+    else
+        echo "⚠️  harden_postfix.sh not found, skipping hardening."
+    fi
 
     # --- Monitoring Setup ---
-    echo "📊 Setting up Mail Monitoring..."
+    echo "📊 Setting up Mail Monitoring & Refreshing Stats..."
     source venv/bin/activate
-    # Run once to initialize stats
+    # Run once to initialize/refresh stats with new logic
+    echo "🔄 Refreshing domain statistics in database..."
     sudo /opt/mail_admin/venv/bin/python3 /opt/mail_admin/mail_monitor.py || true
     
     # Setup cron job (runs every hour)
     CRON_JOB="0 * * * * cd /opt/mail_admin && /opt/mail_admin/venv/bin/python3 mail_monitor.py >> /var/log/mail_monitor.log 2>&1"
     (sudo crontab -l 2>/dev/null | grep -v "mail_monitor.py"; echo "$CRON_JOB") | sudo crontab -
 
-    # --- Sudoers for Log Reading ---
-    echo "🔑 Configuring log reading permissions..."
-    cat <<SUDO_CONF | sudo tee /etc/sudoers.d/mail-admin
-ubuntu ALL=(ALL) NOPASSWD: /usr/bin/tail -n [0-9]* /var/log/mail.log
-ubuntu ALL=(ALL) NOPASSWD: /usr/bin/tail -n [0-9]* /var/log/nginx/error.log
-ubuntu ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u mail-admin -n [0-9]* --no-pager
+    # --- Sudoers for Platform Operations (Hardened) ---
+    echo "🔑 Configuring platform permissions..."
+    cat << 'SUDOERS' | sudo tee /etc/sudoers.d/mail-admin
+# Mail Admin Platform - Restricted Commands
+ubuntu ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /var/vmail/*
+ubuntu ALL=(ALL) NOPASSWD: /usr/bin/chown -R vmail\:vmail /var/vmail/*
+ubuntu ALL=(ALL) NOPASSWD: /usr/bin/rm -rf /var/vmail/*
+ubuntu ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u mail-admin *
+ubuntu ALL=(ALL) NOPASSWD: /usr/bin/tail -n * /var/log/mail.log
+ubuntu ALL=(ALL) NOPASSWD: /usr/bin/tail -n * /var/log/nginx/error.log
+ubuntu ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active *
 ubuntu ALL=(ALL) NOPASSWD: /usr/sbin/doveadm reload
-SUDO_CONF
+ubuntu ALL=(ALL) NOPASSWD: /opt/mail_admin/venv/bin/python3 /opt/mail_admin/mail_monitor.py
+SUDOERS
     sudo chmod 0440 /etc/sudoers.d/mail-admin
 
     echo "✅ Remote setup complete!"

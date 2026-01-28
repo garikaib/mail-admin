@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% include "partials/sidebar.html" %}
+
+<main class="flex-1 overflow-y-auto bg-slate-50 p-8 space-y-8 animate-fade-in">
+
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h2 class="text-3xl font-extrabold text-slate-800 tracking-tight">Access Management</h2>
+            <p class="text-slate-500 font-medium">Manage external administrators and domain permissions</p>
+        </div>
+
+        <button onclick="document.getElementById('createAdminModal').classList.remove('hidden')"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-bold shadow-xl shadow-indigo-100 flex items-center gap-2 transform active:scale-95 transition-all group">
+            <i data-lucide="user-plus" class="w-5 h-5"></i>
+            <span>Create Admin</span>
+        </button>
+    </div>
+
+    <!-- Admins List -->
+    <div class="grid grid-cols-1 gap-6">
+        {% for admin in admins %}
+        <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+            <div class="flex flex-col md:flex-row justify-between items-start gap-6">
+
+                <!-- Admin Profile -->
+                <div class="flex items-center gap-4">
+                    <div class="bg-slate-100 p-3 rounded-2xl text-slate-400">
+                        <i data-lucide="user" class="w-8 h-8"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-800">{{ admin.username }}</h3>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                            {% if admin.is_superuser %}Super Admin{% else %}Domain Admin{% endif %}
+                        </p>
+                        <p class="text-xs text-slate-400 mt-1">Created: {{ admin.date_joined|date:"M d, Y" }}</p>
+                    </div>
+                </div>
+
+                <!-- Delete Action -->
+                {% if not admin.is_superuser and admin.id != request.user.id %}
+                <form method="POST" onsubmit="return confirm('Are you sure you want to delete this admin account?');">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete_admin">
+                    <input type="hidden" name="user_id" value="{{ admin.id }}">
+                    <button type="submit" class="text-red-500 hover:bg-red-50 p-2.5 rounded-xl transition-colors"
+                        title="Delete Account">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+
+            <!-- Domain Assignments -->
+            <div class="mt-6 border-t border-slate-50 pt-6">
+                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-[0.1em] mb-4">Assigned Domains</h4>
+
+                <div class="flex flex-wrap gap-3 mb-4">
+                    {% for assignment in admin.assignments.all %}
+                    <div
+                        class="group flex items-center gap-2 bg-indigo-50 text-indigo-700 px-3 py-2 rounded-xl text-sm font-bold border border-indigo-100/50">
+                        <i data-lucide="globe" class="w-4 h-4 text-indigo-400"></i>
+                        <span>{{ assignment.domain_name }}</span>
+
+                        <form method="POST" class="ml-1 inline-flex">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="revoke_domain">
+                            <input type="hidden" name="assignment_id" value="{{ assignment.id }}">
+                            <button type="submit" class="text-indigo-400 hover:text-red-500 transition-colors"
+                                title="Revoke Access">
+                                <i data-lucide="x" class="w-3 h-3"></i>
+                            </button>
+                        </form>
+                    </div>
+                    {% empty %}
+                    <p class="text-sm text-slate-400 italic">No domains assigned.</p>
+                    {% endfor %}
+                </div>
+
+                <!-- Assign Form -->
+                {% if not admin.is_superuser %}
+                <form method="POST" class="flex gap-2 max-w-md">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="assign_domain">
+                    <input type="hidden" name="user_id" value="{{ admin.id }}">
+
+                    <div class="relative flex-1">
+                        <select name="domain_name" required
+                            class="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-100 appearance-none cursor-pointer">
+                            <option value="" disabled selected>Select domain to assign...</option>
+                            {% for domain in domains %}
+                            <option value="{{ domain.name }}">{{ domain.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <i data-lucide="chevron-down"
+                            class="w-4 h-4 absolute right-3 top-3 text-slate-400 pointer-events-none"></i>
+                    </div>
+
+                    <button type="submit"
+                        class="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-lg active:scale-95">
+                        Assign
+                    </button>
+                </form>
+                {% else %}
+                <p class="text-xs text-indigo-500 font-bold bg-indigo-50 px-3 py-1 rounded-lg w-fit">
+                    <i data-lucide="check-circle" class="w-3 h-3 inline mr-1"></i> Has full system access
+                </p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</main>
+
+<!-- Create Admin Modal -->
+<div id="createAdminModal"
+    class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+    <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg p-10 animate-slide-in relative overflow-hidden">
+        <div class="absolute -top-10 -right-10 w-32 h-32 bg-indigo-50 rounded-full blur-3xl opacity-60"></div>
+
+        <div class="relative z-10">
+            <div class="flex justify-between items-start mb-8">
+                <div>
+                    <h3 class="text-2xl font-extrabold text-slate-800 tracking-tight">Create Administrator</h3>
+                    <p class="text-slate-500 font-medium mt-1">Add an external user (e.g., Gmail) to manage domains</p>
+                </div>
+                <button onclick="document.getElementById('createAdminModal').classList.add('hidden')"
+                    class="bg-slate-50 hover:bg-slate-100 p-2 rounded-xl text-slate-400 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form method="POST" class="space-y-6">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_admin">
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Email /
+                        Username</label>
+                    <input type="email" name="email" required
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all font-medium text-slate-700 placeholder-slate-300"
+                        placeholder="admin@gmail.com">
+                </div>
+
+                <div>
+                    <label
+                        class="block text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Password</label>
+                    <input type="password" name="password" required
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all font-medium text-slate-700 placeholder-slate-300"
+                        placeholder="••••••••">
+                </div>
+
+                <div class="pt-4 flex items-center gap-4">
+                    <button type="button" onclick="document.getElementById('createAdminModal').classList.add('hidden')"
+                        class="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold py-4 px-6 rounded-2xl transition-all">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-indigo-200 transition-all transform active:scale-95 flex items-center justify-center gap-2">
+                        <span>Create Account</span>
+                        <i data-lucide="user-check" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    lucide.createIcons();
+</script>
+{% endblock %}

@@ -20,7 +20,8 @@
         </button>
     </div>
 
-    <!-- Server Health Grid -->
+    <!-- Server Health Grid (Superuser Only) -->
+    {% if health %}
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
             <div class="flex justify-between items-start mb-4">
@@ -69,6 +70,7 @@
             <p class="text-[10px] text-slate-400 font-bold uppercase mt-2">v22.04 LTS</p>
         </div>
     </div>
+    {% endif %}
 
     <!-- Controls Bar -->
     <div
@@ -79,10 +81,8 @@
                 class="w-5 h-5 absolute left-4 top-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
             <form method="GET" action="." class="w-full">
                 <!-- Preserve other params -->
-                {% if current_status != 'all' %}<input type="hidden" name="status" value="{{ current_status }}">{% endif
-                %}
-                {% if current_sort != 'name_asc' %}<input type="hidden" name="sort" value="{{ current_sort }}">{% endif
-                %}
+                {% if current_status != 'all' %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+                {% if current_sort != 'name_asc' %}<input type="hidden" name="sort" value="{{ current_sort }}">{% endif %}
 
                 <input type="text" name="q" placeholder="Search domains..." value="{{ current_q }}"
                     class="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-500 transition-all font-medium text-slate-700 placeholder-slate-400">
@@ -114,13 +114,13 @@
                     <i data-lucide="arrow-up-down" class="w-4 h-4 absolute left-3 top-3.5 text-slate-400"></i>
                     <select name="sort" onchange="this.form.submit()"
                         class="pl-9 pr-8 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 focus:outline-none focus:ring-4 focus:ring-brand-100 cursor-pointer appearance-none">
-                        <option value="name_asc" {% if current_sort=='name_asc' %}selected{% endif %}>Name (A-Z)
+                        <option value="name_asc" {% if current_sort == 'name_asc' %}selected{% endif %}>Name (A-Z)
                         </option>
-                        <option value="name_desc" {% if current_sort=='name_desc' %}selected{% endif %}>Name (Z-A)
+                        <option value="name_desc" {% if current_sort == 'name_desc' %}selected{% endif %}>Name (Z-A)
                         </option>
-                        <option value="usage_high" {% if current_sort=='usage_high' %}selected{% endif %}>High Usage
+                        <option value="usage_high" {% if current_sort == 'usage_high' %}selected{% endif %}>High Usage
                         </option>
-                        <option value="usage_low" {% if current_sort=='usage_low' %}selected{% endif %}>Low Usage
+                        <option value="usage_low" {% if current_sort == 'usage_low' %}selected{% endif %}>Low Usage
                         </option>
                     </select>
                 </div>
@@ -181,6 +181,7 @@
                     </td>
                     <td class="px-8 py-6 text-right">
                         <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {% if request.user.is_superuser %}
                             <button
                                 onclick="openDomainSettings('{{ dom.id }}', '{{ dom.name|escapejs }}', '{{ dom.max_users }}', '{{ dom.max_aliases }}', '{{ dom.is_active|yesno:'true,false' }}')"
                                 class="p-2.5 bg-slate-50 text-slate-500 hover:bg-slate-900 hover:text-white rounded-xl transition-all"
@@ -188,20 +189,28 @@
                                 <i data-lucide="settings" class="w-4 h-4"></i>
                             </button>
                             <a href="{% url 'monitor_domain' dom.id %}"
-                                class="bg-brand-50 text-brand-700 px-4 py-2 rounded-xl text-xs font-bold hover:bg-brand-600 hover:text-white transition-all">
-                                Monitor
+                                class="p-2.5 bg-amber-50 text-amber-500 hover:bg-amber-100 hover:text-amber-700 rounded-xl transition-all"
+                                title="Detailed Monitor">
+                                <i data-lucide="activity" class="w-4 h-4"></i>
+                            </a>
+                            {% endif %}
+                            
+                            <a href="{% url 'manage_domain' dom.id %}"
+                                class="bg-brand-50 text-brand-700 px-4 py-2 rounded-xl text-xs font-bold hover:bg-brand-600 hover:text-white transition-all flex items-center gap-2">
+                                <span>Manage</span>
+                                <i data-lucide="arrow-right" class="w-4 h-4"></i>
                             </a>
                         </div>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="3" class="p-16 text-center">
+                    <td colspan="4" class="p-16 text-center">
                         <div class="flex flex-col items-center gap-4">
                             <div class="bg-slate-100 p-4 rounded-full text-slate-400">
                                 <i data-lucide="search-x" class="w-10 h-10"></i>
                             </div>
-                            <p class="text-slate-500 font-medium">No domains found in the system cluster</p>
+                            <p class="text-slate-500 font-medium">No domains found in your account.</p>
                         </div>
                     </td>
                 </tr>
