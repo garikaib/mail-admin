@@ -82,8 +82,10 @@ ssh -t $REMOTE_USER@$REMOTE_HOST << 'EOF'
 
     
     # Ensure static src exists before collectstatic
-    mkdir -p static/src
-    touch static/src/output.css
+    mkdir -p static/css
+    
+    # Static CSS is pre-built locally and committed to repo - no build needed here
+    mkdir -p static/css
 
     echo "Static files..."
     /opt/mail_admin/venv/bin/python3 manage.py collectstatic --noinput
