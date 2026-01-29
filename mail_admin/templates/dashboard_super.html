@@ -112,16 +112,12 @@
                 <input type="hidden" name="status" value="{{ current_status }}">
                 <div class="relative">
                     <i data-lucide="arrow-up-down" class="w-4 h-4 absolute left-3 top-3.5 text-slate-400"></i>
-                    <select name="sort" onchange="this.form.submit()"
+                    <select name="sort" id="sortSelector"
                         class="pl-9 pr-8 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 focus:outline-none focus:ring-4 focus:ring-brand-100 cursor-pointer appearance-none">
-                        <option value="name_asc" {% if current_sort == 'name_asc' %}selected{% endif %}>Name (A-Z)
-                        </option>
-                        <option value="name_desc" {% if current_sort == 'name_desc' %}selected{% endif %}>Name (Z-A)
-                        </option>
-                        <option value="usage_high" {% if current_sort == 'usage_high' %}selected{% endif %}>High Usage
-                        </option>
-                        <option value="usage_low" {% if current_sort == 'usage_low' %}selected{% endif %}>Low Usage
-                        </option>
+                        <option value="name_asc" {% if current_sort == 'name_asc' %}selected{% endif %}>Name (A-Z)</option>
+                        <option value="name_desc" {% if current_sort == 'name_desc' %}selected{% endif %}>Name (Z-A)</option>
+                        <option value="usage_high" {% if current_sort == 'usage_high' %}selected{% endif %}>High Usage</option>
+                        <option value="usage_low" {% if current_sort == 'usage_low' %}selected{% endif %}>Low Usage</option>
                     </select>
                 </div>
             </form>
@@ -183,9 +179,10 @@
                         <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             {% if request.user.is_superuser %}
                             <button
-                                onclick="openDomainSettings('{{ dom.id }}', '{{ dom.name|escapejs }}', '{{ dom.max_users }}', '{{ dom.max_aliases }}', '{{ dom.is_active|yesno:'true,false' }}')"
-                                class="p-2.5 bg-slate-50 text-slate-500 hover:bg-slate-900 hover:text-white rounded-xl transition-all"
-                                title="Domain Settings">
+                                class="domain-settings-btn p-2.5 bg-slate-50 text-slate-500 hover:bg-slate-900 hover:text-white rounded-xl transition-all"
+                                data-id="{{ dom.id }}" data-name="{{ dom.name|escapejs }}"
+                                data-users="{{ dom.max_users }}" data-aliases="{{ dom.max_aliases }}"
+                                data-active="{{ dom.is_active|yesno:'true,false' }}" title="Domain Settings">
                                 <i data-lucide="settings" class="w-4 h-4"></i>
                             </button>
                             <a href="{% url 'monitor_domain' dom.id %}"
@@ -194,7 +191,7 @@
                                 <i data-lucide="activity" class="w-4 h-4"></i>
                             </a>
                             {% endif %}
-                            
+
                             <a href="{% url 'manage_domain' dom.id %}"
                                 class="bg-brand-50 text-brand-700 px-4 py-2 rounded-xl text-xs font-bold hover:bg-brand-600 hover:text-white transition-all flex items-center gap-2">
                                 <span>Manage</span>
@@ -229,11 +226,10 @@
         <div class="relative z-10">
             <div class="flex justify-between items-start mb-8">
                 <div>
-                    <h3 class="text-2xl font-extrabold text-slate-800 tracking-tight" id="modalDomainName">Domain
-                        Settings</h3>
+                    <h3 class="text-2xl font-extrabold text-slate-800 tracking-tight" id="modalDomainName">Domain Settings</h3>
                     <p class="text-slate-500 font-medium mt-1">Configure limits and status for this domain</p>
                 </div>
-                <button onclick="document.getElementById('domainSettingsModal').classList.add('hidden')"
+                <button id="closeDomainSettingsBtn"
                     class="bg-slate-50 hover:bg-slate-100 p-2 rounded-xl text-slate-400 transition-colors">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
@@ -247,8 +243,7 @@
 
                 <div>
                     <label
-                        class="block text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Subscription
-                        Plan</label>
+                        class="block text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Subscription Plan</label>
                     <select name="plan_id" id="modalPlanId" required
                         class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-500 transition-all font-bold text-slate-700 cursor-pointer appearance-none">
                         {% for plan in plans %}
@@ -268,8 +263,7 @@
                 </div>
 
                 <div class="pt-4 flex items-center gap-4">
-                    <button type="button"
-                        onclick="document.getElementById('domainSettingsModal').classList.add('hidden')"
+                    <button type="button" id="cancelDomainSettingsBtn"
                         class="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold py-4 px-6 rounded-2xl transition-all">
                         Cancel
                     </button>
@@ -284,15 +278,30 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
+    lucide.createIcons();
+
+    const modal = document.getElementById('domainSettingsModal');
+    const closeBtn = document.getElementById('closeDomainSettingsBtn');
+    const cancelBtn = document.getElementById('cancelDomainSettingsBtn');
+    const sortSelector = document.getElementById('sortSelector');
+
+    if (closeBtn) closeBtn.onclick = () => modal.classList.add('hidden');
+    if (cancelBtn) cancelBtn.onclick = () => modal.classList.add('hidden');
+    if (sortSelector) sortSelector.onchange = () => sortSelector.form.submit();
+
     function openDomainSettings(id, name, maxUsers, maxAliases, isActive) {
         document.getElementById('modalDomainId').value = id;
         document.getElementById('modalDomainName').textContent = name;
-        // document.getElementById('modalMaxUsers').value = maxUsers; // Deprecated by Plans
         document.getElementById('modalIsActive').checked = (isActive === 'true');
-
-        // Reset or Select default if logic exists, for now just open
-        document.getElementById('domainSettingsModal').classList.remove('hidden');
+        modal.classList.remove('hidden');
     }
+
+    document.querySelectorAll('.domain-settings-btn').forEach(btn => {
+        btn.onclick = () => {
+            const d = btn.dataset;
+            openDomainSettings(d.id, d.name, d.users, d.aliases, d.active);
+        };
+    });
 </script>
 {% endblock %}

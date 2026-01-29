@@ -9,10 +9,10 @@
     <title>Mail Admin | ZimPrices</title>
 
     <!-- HTMX -->
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10" nonce="{{ request.csp_nonce }}"></script>
 
     <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@latest" nonce="{{ request.csp_nonce }}"></script>
 
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -89,11 +89,11 @@
 
     <script nonce="{{ request.csp_nonce }}">
         // Initialize Lucide Icons
-        lucide.createIcons();
+        if (window.lucide) lucide.createIcons();
 
         // HTMX Hooks for Icons and Animations
         document.body.addEventListener('htmx:afterSwap', function (evt) {
-            lucide.createIcons();
+            if (window.lucide) lucide.createIcons();
         });
 
         document.body.addEventListener('htmx:configRequest', (event) => {
@@ -101,16 +101,59 @@
             event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
         });
 
+        /**
+         * Global Event Delegation for CSP compliance
+         * Handles interactive elements in partials without requiring inline scripts
+         */
+        document.addEventListener('click', function(e) {
+            // 1. Copy Password Button
+            const copyBtn = e.target.closest('.copy-pwd-btn');
+            if (copyBtn) {
+                const pwd = copyBtn.dataset.pwd;
+                copyToClipboard(pwd, copyBtn);
+                return;
+            }
+
+            // 2. Close Message Button
+            const closeMsgBtn = e.target.closest('.close-msg-btn');
+            if (closeMsgBtn) {
+                const msg = closeMsgBtn.closest('.animate-slide-in');
+                if (msg) msg.remove();
+                return;
+            }
+
+            // 3. Edit Alias Modal (Overlay & Close)
+            const closeAliasBtn = e.target.closest('#closeEditAliasBtn');
+            const aliasOverlay = document.getElementById('edit-alias-overlay');
+            if (closeAliasBtn || e.target === aliasOverlay) {
+                if (aliasOverlay) aliasOverlay.remove();
+                return;
+            }
+
+            // 4. Delete User Button (Manage Domain Page)
+            const deleteUserBtn = e.target.closest('.delete-user-btn');
+            if (deleteUserBtn) {
+                const d = deleteUserBtn.dataset;
+                if (typeof openDeleteModal === 'function') {
+                    openDeleteModal(d.email, d.url);
+                }
+                return;
+            }
+        });
+
         function copyToClipboard(text, btn) {
+            if (!navigator.clipboard) return;
             navigator.clipboard.writeText(text).then(() => {
-                const icon = btn.querySelector('i');
                 const originalHtml = btn.innerHTML;
-                btn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-emerald-500"></i>';
-                lucide.createIcons();
+                const icon = btn.querySelector('i');
+                btn.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5 text-emerald-500"></i><span>Copied!</span>';
+                if (window.lucide) lucide.createIcons();
                 setTimeout(() => {
                     btn.innerHTML = originalHtml;
-                    lucide.createIcons();
+                    if (window.lucide) lucide.createIcons();
                 }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
             });
         }
     </script>

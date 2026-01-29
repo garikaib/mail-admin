@@ -1,179 +1,116 @@
 #!/bin/bash
-# deploy.sh - Consolidated deployment script
+# deploy.sh - Fast, bundle-based deployment
 # Usage: ./deploy.sh
+#
+# This script handles routine code deployments. For initial server setup
+# or infrastructure changes, run ./setup_server.sh instead.
 
 set -e
 
 # Configuration
 REMOTE_USER="ubuntu"
 REMOTE_HOST="51.77.222.232"
-REMOTE_PROJECT_DIR="/opt/mail_admin"
-STAGING_DIR="~/mail_admin_staging"
-DOMAIN="admin.zimprices.co.zw"
+REMOTE_DIR="/opt/mail_admin"
+BUNDLE_NAME="mail_admin_bundle.tar.zst"
+LOCAL_BUNDLE="/tmp/$BUNDLE_NAME"
 
-echo "🚀 Starting deployment to $REMOTE_HOST..."
+echo "🚀 Starting bundle-based deployment to $REMOTE_HOST..."
 
-# 1. Sync files to remote staging
-echo "📦 Syncing files to remote staging..."
+# Precondition: .env must exist
 if [ ! -f "mail_admin/.env" ]; then
     echo "❌ Error: mail_admin/.env file not found!"
-    echo "Please create mail_admin/.env with your secrets (TURNSTILE keys, etc.) before deploying."
+    echo "Please create mail_admin/.env with your secrets before deploying."
     exit 1
 fi
 
-ssh $REMOTE_USER@$REMOTE_HOST "mkdir -p $STAGING_DIR"
-rsync -avz --exclude 'venv' --exclude '__pycache__' --exclude 'db.sqlite3' ./mail_admin/ ./scripts $REMOTE_USER@$REMOTE_HOST:$STAGING_DIR/
+# 1. Create zstd bundle locally
+echo "📦 Creating zstd bundle..."
+tar --zstd -cf "$LOCAL_BUNDLE" -C . \
+    --exclude='venv' \
+    --exclude='__pycache__' \
+    --exclude='.git' \
+    --exclude='*.pyc' \
+    --exclude='db.sqlite3' \
+    mail_admin
 
-# 2. Remote Execution Block
-echo "🛠️  Running remote setup (using passwordless sudo)..."
-ssh -t $REMOTE_USER@$REMOTE_HOST << 'EOF'
+BUNDLE_SIZE=$(du -h "$LOCAL_BUNDLE" | cut -f1)
+echo "   Bundle created: $BUNDLE_SIZE"
+
+# 2. Transfer bundle to server
+echo "📤 Transferring bundle to server..."
+scp "$LOCAL_BUNDLE" "$REMOTE_USER@$REMOTE_HOST:/tmp/"
+
+# 3. Remote extraction and service restart
+echo "🛠️  Extracting bundle and restarting service..."
+ssh -t "$REMOTE_USER@$REMOTE_HOST" << 'EOF'
     set -e
-    
-    # --- Setup Django App ---
-    echo "🏗️ Setting up Django environment in /opt/mail_admin..."
-    sudo mkdir -p /opt/mail_admin
-    sudo chown ubuntu:ubuntu /opt/mail_admin
-    
-    # Sync from staging to /opt/
-    rsync -av ~/mail_admin_staging/ /opt/mail_admin/
-    
-    # Explicitly ensure .env is secure
+
+    echo "Stopping service..."
+    sudo systemctl stop mail-admin || true
+
+    # Extract to temp location
+    echo "Extracting bundle..."
+    rm -rf /tmp/mail_admin_new
+    tar --zstd -xf /tmp/mail_admin_bundle.tar.zst -C /tmp/
+    mv /tmp/mail_admin /tmp/mail_admin_new
+
+    # Preserve venv (if it exists)
+    if [ -d "/opt/mail_admin/venv" ]; then
+        echo "Preserving existing virtualenv..."
+        cp -a /opt/mail_admin/venv /tmp/mail_admin_new/
+    fi
+
+    # Preserve .env (if it exists on server and not in bundle)
+    if [ -f "/opt/mail_admin/.env" ] && [ ! -f "/tmp/mail_admin_new/.env" ]; then
+        echo "Preserving existing .env..."
+        cp /opt/mail_admin/.env /tmp/mail_admin_new/
+    fi
+
+    # Atomic swap: old -> backup, new -> active
+    echo "Performing atomic swap..."
+    sudo rm -rf /opt/mail_admin_old
+    if [ -d "/opt/mail_admin" ]; then
+        sudo mv /opt/mail_admin /opt/mail_admin_old
+    fi
+    sudo mv /tmp/mail_admin_new /opt/mail_admin
+    sudo chown -R ubuntu:ubuntu /opt/mail_admin
+
+    # Secure .env
     if [ -f "/opt/mail_admin/.env" ]; then
         chmod 600 /opt/mail_admin/.env
     fi
 
+    # Run migrations
+    echo "Running migrations..."
     cd /opt/mail_admin
-    
-    # System dependencies
-    sudo apt-get update -qq
-    sudo apt-get upgrade -y -qq
-    sudo apt-get install -y -qq python3-venv python3-dev libmysqlclient-dev zstd build-essential nginx
+    ./venv/bin/python3 manage.py migrate --noinput
 
-    # Virtual environment
-    # Robustness check: if venv exists but is broken, delete it
-    if [ -d "venv" ]; then
-        if ! ./venv/bin/python3 -c "import sys" >/dev/null 2>&1; then
-            echo "⚠️  Detected broken venv, recreating..."
-            rm -rf venv
-        fi
-    fi
-
-    if [ ! -d "venv" ]; then
-        echo "🐍 Creating virtual environment..."
-        python3 -m venv venv
-    fi
-    
-    echo "python dependencies..."
-    ./venv/bin/python3 -m pip install -q --upgrade pip
-    # Install dependencies
-    ./venv/bin/python3 -m pip install django django-htmx django-compressor passlib[sha512] pymysql gunicorn requests psutil
-
-    # Migrations & Static
-    echo "Migrations..."
-    /opt/mail_admin/venv/bin/python3 manage.py makemigrations core --noinput
-    /opt/mail_admin/venv/bin/python3 manage.py migrate --noinput
-    /opt/mail_admin/venv/bin/python3 manage.py migrate --database=default --noinput
-    
-    # DB Schema Update (for monitoring)
-    if [ -f "scripts/update_db_schema.py" ]; then
-        echo "Running DB Schema Update..."
-        /opt/mail_admin/venv/bin/python3 scripts/update_db_schema.py
-    fi
-
-    
-    # Ensure static src exists before collectstatic
+    # Collect static files
+    echo "Collecting static files..."
     mkdir -p static/css
-    
-    # Static CSS is pre-built locally and committed to repo - no build needed here
-    mkdir -p static/css
+    ./venv/bin/python3 manage.py collectstatic --noinput
 
-    echo "Static files..."
-    /opt/mail_admin/venv/bin/python3 manage.py collectstatic --noinput
+    # Start service
+    echo "Starting service..."
+    sudo systemctl start mail-admin
 
-    # --- Systemd Service ---
-    echo "⚙️ Setting up Systemd service..."
-    cat << SERVICE_CONF | sudo tee /etc/systemd/system/mail-admin.service
-[Unit]
-Description=Gunicorn instance to serve Mail Admin Platform
-After=network.target
-
-[Service]
-User=ubuntu
-Group=ubuntu
-WorkingDirectory=/opt/mail_admin
-Environment="PATH=/opt/mail_admin/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-EnvironmentFile=/opt/mail_admin/.env
-ExecStart=/opt/mail_admin/venv/bin/gunicorn --workers 3 --bind 127.0.0.1:8000 config.wsgi:application
-
-[Install]
-WantedBy=multi-user.target
-SERVICE_CONF
-
-    sudo systemctl daemon-reload
-    sudo systemctl enable mail-admin
-    sudo systemctl restart mail-admin
-
-    # --- Dovecot Quota Alignment ---
-    echo "🐦 Aligning Dovecot Quotas..."
-    # Ensure quota kb is in user query
-    SQL_CONF="/etc/dovecot/dovecot-sql.conf.ext"
-    sudo sed -i "s/user_query = SELECT mail as user, '\/var\/vmail\/%d\/%n' as home, 5000 as uid, 5000 as gid FROM users WHERE mail='%u';/user_query = SELECT mail as user, '\/var\/vmail\/%d\/%n' as home, 5000 as uid, 5000 as gid, concat('*:storage=', quota_kb) as quota_rule FROM users WHERE mail='%u';/" $SQL_CONF
-
-    # Enable global quota plugin
-    MAIL_CONF="/etc/dovecot/conf.d/10-mail.conf"
-    if ! sudo grep -q "mail_plugins =.*quota" $MAIL_CONF; then
-        sudo sed -i "s/#mail_plugins =/mail_plugins = quota/" $MAIL_CONF || echo "mail_plugins = \$mail_plugins quota" | sudo tee -a $MAIL_CONF
-    fi
-
-    # Fix 90-quota.conf driver
-    cat <<'QUOTA_EOF' | sudo tee /etc/dovecot/conf.d/90-quota.conf
-plugin {
-  quota = maildir:User quota
-  quota_rule = *:storage=1G
-  quota_grace = 10%
-  quota_status_success = yes
-  quota_status_nofree = quota-exceeded
-}
-QUOTA_EOF
-
-    sudo systemctl restart dovecot
-    # --- Postfix Hardening ---
-    echo "🛡️  Running Postfix hardening..."
-    if [ -f "/opt/mail_admin/scripts/maintenance/harden_postfix.sh" ]; then
-        sudo bash /opt/mail_admin/scripts/maintenance/harden_postfix.sh
+    # Quick health check
+    sleep 2
+    if sudo systemctl is-active --quiet mail-admin; then
+        echo "✅ Service is running!"
     else
-        echo "⚠️  harden_postfix.sh not found, skipping hardening."
+        echo "❌ Service failed to start. Check logs with: sudo journalctl -u mail-admin -n 50"
+        exit 1
     fi
 
-    # --- Monitoring Setup ---
-    echo "📊 Setting up Mail Monitoring & Refreshing Stats..."
-    source venv/bin/activate
-    # Run once to initialize/refresh stats with new logic
-    echo "🔄 Refreshing domain statistics in database..."
-    sudo /opt/mail_admin/venv/bin/python3 /opt/mail_admin/mail_monitor.py || true
-    
-    # Setup cron job (runs every hour)
-    CRON_JOB="0 * * * * cd /opt/mail_admin && /opt/mail_admin/venv/bin/python3 mail_monitor.py >> /var/log/mail_monitor.log 2>&1"
-    (sudo crontab -l 2>/dev/null | grep -v "mail_monitor.py"; echo "$CRON_JOB") | sudo crontab -
-
-    # --- Sudoers for Platform Operations (Hardened) ---
-    echo "🔑 Configuring platform permissions..."
-    cat << 'SUDOERS' | sudo tee /etc/sudoers.d/mail-admin
-# Mail Admin Platform - Restricted Commands
-ubuntu ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /var/vmail/*
-ubuntu ALL=(ALL) NOPASSWD: /usr/bin/chown -R vmail\:vmail /var/vmail/*
-ubuntu ALL=(ALL) NOPASSWD: /usr/bin/rm -rf /var/vmail/*
-ubuntu ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u mail-admin *
-ubuntu ALL=(ALL) NOPASSWD: /usr/bin/tail -n * /var/log/mail.log
-ubuntu ALL=(ALL) NOPASSWD: /usr/bin/tail -n * /var/log/nginx/error.log
-ubuntu ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active *
-ubuntu ALL=(ALL) NOPASSWD: /usr/sbin/doveadm reload
-ubuntu ALL=(ALL) NOPASSWD: /opt/mail_admin/venv/bin/python3 /opt/mail_admin/mail_monitor.py
-SUDOERS
-    sudo chmod 0440 /etc/sudoers.d/mail-admin
-
-    echo "✅ Remote setup complete!"
+    # Cleanup
+    rm /tmp/mail_admin_bundle.tar.zst
+    echo "✅ Remote deployment complete!"
 EOF
 
+# Cleanup local bundle
+rm "$LOCAL_BUNDLE"
+
+echo ""
 echo "🎉 Deployment finished successfully!"
-echo "📍 Access your app at: http://admin.zimprices.co.zw"
+echo "📍 Access your app at: https://admin.zimprices.co.zw"

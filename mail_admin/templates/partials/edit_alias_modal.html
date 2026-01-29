@@ -1,6 +1,5 @@
 <!-- Edit Alias Modal -->
-<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" id="edit-alias-overlay"
-    onclick="if(event.target===this) this.remove()">
+<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" id="edit-alias-overlay">
     <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md animate-slide-in">
         <h3 class="text-xl font-bold text-slate-800 mb-6">Edit Alias</h3>
         <form hx-post="{% url 'edit_alias' alias.id %}" hx-target="#alias-list-container" hx-swap="innerHTML">
@@ -16,7 +15,7 @@
                     class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-500">
             </div>
             <div class="flex gap-3">
-                <button type="button" onclick="document.getElementById('edit-alias-overlay').remove()"
+                <button type="button" id="closeEditAliasBtn"
                     class="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors">
                     Cancel
                 </button>

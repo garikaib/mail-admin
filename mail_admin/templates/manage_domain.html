@@ -13,12 +13,11 @@
             <p class="text-slate-500 font-medium">Create and manage accounts for {{ domain.name }}</p>
         </div>
 
-        <button {% if usage.is_over_users or usage.users_used>= usage.users_limit %}
+        <button id="addUserBtn" {% if usage.is_over_users or usage.users_used >= usage.users_limit %}
             disabled title="Plan limit reached. Upgrade to add more mailboxes."
             class="bg-slate-300 cursor-not-allowed text-slate-500 px-6 py-3 rounded-2xl font-bold flex items-center
             gap-2 transform transition-all"
             {% else %}
-            onclick="openAddUserModal()"
             class="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-2xl font-bold shadow-xl shadow-slate-200
             flex items-center gap-2 transform active:scale-95 transition-all group"
             {% endif %}>
@@ -76,8 +75,7 @@
                     </div>
                     <div>
                         <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Alias Slots</p>
-                        <p class="text-2xl font-black text-slate-800">{{ usage.aliases_used }} / {{ usage.aliases_limit
-                            }}</p>
+                        <p class="text-2xl font-black text-slate-800">{{ usage.aliases_used }} / {{ usage.aliases_limit }}</p>
                     </div>
                 </div>
                 {% if usage.is_over_aliases %}
@@ -123,7 +121,7 @@
                     <h3 class="text-2xl font-extrabold text-slate-800 tracking-tight">Create Mailbox</h3>
                     <p class="text-slate-500 font-medium mt-1">Add a new user to the mail system</p>
                 </div>
-                <button onclick="closeAddUserModal()"
+                <button id="closeAddUserModalBtn"
                     class="bg-slate-50 hover:bg-slate-100 p-2 rounded-xl text-slate-400 transition-colors">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
@@ -154,7 +152,7 @@
                 </div>
 
                 <div class="pt-4 flex items-center gap-4">
-                    <button type="button" onclick="closeAddUserModal()"
+                    <button type="button" id="cancelAddUserBtn"
                         class="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold py-4 px-6 rounded-2xl transition-all">
                         Cancel
                     </button>
@@ -210,7 +208,7 @@
             </div>
 
             <div class="flex items-center gap-4">
-                <button type="button" onclick="closeDeleteModal()"
+                <button type="button" id="cancelDeleteBtn"
                     class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-4 px-6 rounded-2xl transition-all">
                     Cancel
                 </button>
@@ -224,7 +222,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
     let deleteTargetUrl = '';
 
     function openAddUserModal() {
@@ -234,6 +232,12 @@
     function closeAddUserModal() {
         document.getElementById('addUserModal').classList.add('hidden');
     }
+
+    // Event listeners for buttons (CSP-compliant)
+    document.getElementById('addUserBtn')?.addEventListener('click', openAddUserModal);
+    document.getElementById('closeAddUserModalBtn')?.addEventListener('click', closeAddUserModal);
+    document.getElementById('cancelAddUserBtn')?.addEventListener('click', closeAddUserModal);
+    document.getElementById('cancelDeleteBtn')?.addEventListener('click', closeDeleteModal);
 
     // HTMX Event Listener for successful user addition
     document.body.addEventListener('htmx:afterRequest', function (evt) {

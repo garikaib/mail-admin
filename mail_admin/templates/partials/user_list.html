@@ -33,9 +33,9 @@
                         title="Reset Password">
                         <i data-lucide="key" class="w-4 h-4"></i>
                     </button>
-                    <button onclick="openDeleteModal('{{ user.email }}', '{% url 'delete_user' user.email %}')"
-                        class="p-2.5 bg-slate-50 text-slate-500 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all"
-                        title="Delete User">
+                    <button
+                        class="delete-user-btn p-2.5 bg-slate-50 text-slate-500 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all"
+                        data-email="{{ user.email }}" data-url="{% url 'delete_user' user.email %}" title="Delete User">
                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                     </button>
                 </div>
@@ -58,8 +58,3 @@
         {% endfor %}
     </tbody>
 </table>
-
-<script>
-    // Re-initialize icons after HTMX swap
-    lucide.createIcons();
-</script>

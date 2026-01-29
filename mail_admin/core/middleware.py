@@ -25,7 +25,7 @@ class CSPNonceMiddleware(MiddlewareMixin):
             f"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://challenges.cloudflare.com",  # Tailwind needs inline styles
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data:",
-            "connect-src 'self' https://challenges.cloudflare.com",  # For Turnstile
+            "connect-src 'self' https://unpkg.com https://challenges.cloudflare.com",  # For Turnstile + Lucide
             "frame-src https://challenges.cloudflare.com",  # For Turnstile iframe
             "object-src 'none'",
             "base-uri 'self'",

@@ -8,28 +8,29 @@
             <i data-lucide="{% if message.tags == 'error' %}alert-circle{% else %}check-circle{% endif %}"
                 class="w-5 h-5"></i>
         </div>
-        <div class="flex-1">
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Notification</p>
-            <p class="text-xs font-bold text-slate-800 mt-1 leading-relaxed">{{ message }}</p>
+        <div class="flex-1 min-w-[320px]">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Infrastructure Notification
+            </p>
+            <p class="text-sm font-bold text-slate-800 leading-relaxed">{{ message }}</p>
 
-            {% if "copy:" in message.tags %}
+            {% if "pwd_copy:" in message.tags %}
+            {% with tag_parts=message.tags.split %}
+            {% for tag in tag_parts %}
+            {% if "pwd_copy:" in tag %}
             <button
-                onclick="const pwd = '{{ message.tags }}'.split('copy:')[1].split(' ')[0]; copyToClipboard(pwd, this)"
-                class="mt-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-tighter text-indigo-600 hover:text-indigo-800 transition-colors bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100/50">
-                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
-                <span>Copy Password</span>
+                class="copy-pwd-btn mt-4 w-full flex items-center justify-center gap-2 text-[11px] font-black uppercase tracking-widest text-white hover:bg-slate-800 transition-all bg-slate-900 px-6 py-3 rounded-xl shadow-lg border border-slate-800"
+                data-pwd="{{ tag|slice:'9:' }}">
+                <i data-lucide="copy" class="w-4 h-4"></i>
+                <span>Copy Secure Password</span>
             </button>
             {% endif %}
+            {% endfor %}
+            {% endwith %}
+            {% endif %}
         </div>
-        <button onclick="this.parentElement.remove()" class="text-slate-300 hover:text-slate-600 transition-colors">
+        <button class="close-msg-btn text-slate-300 hover:text-slate-600 transition-colors">
             <i data-lucide="x" class="w-4 h-4"></i>
         </button>
     </div>
     {% endfor %}
 </div>
-
-<script>
-    if (window.lucide) {
-        lucide.createIcons();
-    }
-</script>

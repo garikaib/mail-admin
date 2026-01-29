@@ -12,7 +12,7 @@
             <p class="text-slate-500 font-medium">Define quota and user limits for your domains</p>
         </div>
 
-        <button onclick="openPlanModal()"
+        <button id="createPlanBtn"
             class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-bold shadow-xl shadow-indigo-100 flex items-center gap-2 transform active:scale-95 transition-all group">
             <i data-lucide="plus" class="w-5 h-5"></i>
             <span>Create Plan</span>
@@ -25,13 +25,13 @@
         <div class="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm relative group overflow-hidden">
             <div class="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                 <button
-                    onclick="openPlanModal('{{ plan.id }}', '{{ plan.name }}', '{{ plan.quota_mb }}', '{{ plan.max_users }}', '{{ plan.max_aliases }}')"
-                    class="p-2 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-colors">
+                    class="edit-plan-btn p-2 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-colors"
+                    data-id="{{ plan.id }}" data-name="{{ plan.name }}" data-quota="{{ plan.quota_mb }}"
+                    data-users="{{ plan.max_users }}" data-aliases="{{ plan.max_aliases }}">
                     <i data-lucide="edit-2" class="w-4 h-4"></i>
                 </button>
                 <a href="{% url 'delete_plan' plan.id %}"
-                    onclick="return confirm('Are you sure you want to delete this plan?')"
-                    class="p-2 bg-slate-50 text-slate-400 hover:text-red-500 rounded-xl transition-colors">
+                    class="delete-plan-btn p-2 bg-slate-50 text-slate-400 hover:text-red-500 rounded-xl transition-colors">
                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                 </a>
             </div>
@@ -75,7 +75,7 @@
     <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg p-10 animate-slide-in relative">
         <div class="flex justify-between items-start mb-8">
             <h3 class="text-2xl font-extrabold text-slate-800 tracking-tight" id="modalTitle">Create Plan</h3>
-            <button onclick="document.getElementById('planModal').classList.add('hidden')"
+            <button id="closePlanModalBtn"
                 class="bg-slate-50 hover:bg-slate-100 p-2 rounded-xl text-slate-400 transition-colors">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
@@ -115,7 +115,7 @@
             </div>
 
             <div class="pt-4 flex items-center gap-4">
-                <button type="button" onclick="document.getElementById('planModal').classList.add('hidden')"
+                <button type="button" id="cancelPlanModalBtn"
                     class="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold py-4 px-6 rounded-2xl transition-all">
                     Cancel
                 </button>
@@ -128,7 +128,17 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
+    const modal = document.getElementById('planModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const createBtn = document.getElementById('createPlanBtn');
+    const closeBtn = document.getElementById('closePlanModalBtn');
+    const cancelBtn = document.getElementById('cancelPlanModalBtn');
+
+    if (createBtn) createBtn.onclick = () => openPlanModal();
+    if (closeBtn) closeBtn.onclick = () => modal.classList.add('hidden');
+    if (cancelBtn) cancelBtn.onclick = () => modal.classList.add('hidden');
+
     function openPlanModal(id = '', name = '', quota = '', users = '', aliases = '') {
         document.getElementById('modalPlanId').value = id;
         document.getElementById('modalName').value = name;
@@ -136,8 +146,25 @@
         document.getElementById('modalUsers').value = users;
         document.getElementById('modalAliases').value = aliases;
 
-        document.getElementById('modalTitle').textContent = id ? 'Edit Plan' : 'Create Plan';
-        document.getElementById('planModal').classList.remove('hidden');
+        modalTitle.textContent = id ? 'Edit Plan' : 'Create Plan';
+        modal.classList.remove('hidden');
     }
+
+    document.querySelectorAll('.edit-plan-btn').forEach(btn => {
+        btn.onclick = () => {
+            const d = btn.dataset;
+            openPlanModal(d.id, d.name, d.quota, d.users, d.aliases);
+        };
+    });
+
+    document.querySelectorAll('.delete-plan-btn').forEach(link => {
+        link.onclick = (e) => {
+            if (!confirm('Are you sure you want to delete this plan?')) {
+                e.preventDefault();
+            }
+        };
+    });
+
+    lucide.createIcons();
 </script>
 {% endblock %}

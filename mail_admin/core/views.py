@@ -115,15 +115,21 @@ def login_view(request):
         password = request.POST.get('password')
         turnstile_token = request.POST.get('cf-turnstile-response')
         
+        print(f"DEBUG: Login attempt for {email}")
+        print(f"DEBUG: Turnstile token present: {bool(turnstile_token)}")
+        
         if not verify_turnstile(turnstile_token) and settings.TURNSTILE_SECRET_KEY:
+            print("DEBUG: Turnstile verification failed")
             messages.error(request, "Security check failed. Please solve the Turnstile challenge.")
             return render(request, 'login.html')
 
         user = authenticate(request, username=email, password=password)
         if user:
+            print(f"DEBUG: Auth successful for {email}")
             login(request, user)
             return redirect('dashboard')
         else:
+            print(f"DEBUG: Auth failed for {email}")
             messages.error(request, "Invalid email or password.")
     
     return render(request, 'login.html')
@@ -351,7 +357,7 @@ def add_user(request, domain_id):
         # Don't show technical details to user
 
     audit_log(request.user, "CREATE", email, f"Name: {display_name}")
-    messages.success(request, f"User {email} created. Password: {password}", extra_tags=f"copy:{password}")
+    messages.success(request, f"User {email} created. Password: {password}", extra_tags=f"pwd_copy:{password}")
     
     return user_list(request, domain_id)
 
@@ -504,6 +510,11 @@ def delete_user(request, email):
         
     if domain.name not in get_managed_domains(request.user):
         return HttpResponseForbidden("Unauthorized")
+    
+    # SECURITY: Prevent self-deletion (lockout prevention)
+    if email == request.user.username:
+        messages.error(request, "You cannot delete your own account.")
+        return HttpResponseForbidden("Self-deletion is not permitted.")
         
     # Loophole Fix: Block domain admins from deleting superuser accounts
     if is_protected_account(email) and not request.user.is_superuser:
@@ -562,7 +573,7 @@ def reset_password(request, email):
         
     MailUser.objects.using('mail_data').filter(email=email).update(password=password_hash)
     audit_log(request.user, "RESET_PASSWORD", email)
-    messages.success(request, f"Password for {email} reset to: {password}", extra_tags=f"copy:{password}")
+    messages.success(request, f"Password for {email} reset to: {password}", extra_tags=f"pwd_copy:{password}")
     return render(request, 'partials/messages.html')
 
 @login_required

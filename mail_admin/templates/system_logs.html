@@ -11,12 +11,12 @@
             <h2 class="text-3xl font-extrabold text-slate-800 tracking-tight">System Logs</h2>
             <p class="text-slate-500 font-medium">Live terminal-style view of infrastructure services</p>
         </div>
-        
+
         <div class="flex items-center gap-4">
             <!-- Service Selector -->
             <form method="GET"
                 class="flex items-center gap-2 bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
-                <select name="service" onchange="this.form.submit()"
+                <select name="service" id="serviceSelector"
                     class="bg-transparent border-none text-xs font-bold text-slate-700 focus:ring-0 cursor-pointer px-4">
                     <option value="mail" {% if current_service == 'mail' %}selected{% endif %}>Postfix / Dovecot</option>
                     <option value="nginx" {% if current_service == 'nginx' %}selected{% endif %}>Nginx Error Logs</option>
@@ -43,14 +43,15 @@
                     <div class="w-2.5 h-2.5 bg-emerald-500/50 rounded-full"></div>
                 </div>
                 <!-- Cleaned up template tag for console output -->
-                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-2">Console Output: {{ current_service }}.log</span>
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-2">Console Output: {{
+                    current_service }}.log</span>
             </div>
 
             <form method="GET" class="flex items-center gap-4">
                 <input type="hidden" name="service" value="{{ current_service }}">
                 <div class="flex items-center gap-2">
                     <span class="text-[10px] font-bold text-slate-500">LINES</span>
-                    <select name="lines" onchange="this.form.submit()"
+                    <select name="lines" id="linesSelector"
                         class="bg-white/5 border-none text-[10px] font-bold text-white rounded-lg focus:ring-0 p-1">
                         <option value="50" {% if current_lines == 50 %}selected{% endif %}>50</option>
                         <option value="100" {% if current_lines == 100 %}selected{% endif %}>100</option>
@@ -72,14 +73,15 @@
             hx-get="{% url 'system_logs' %}?service={{ current_service }}&lines={{ current_lines }}&filter={{ current_filter }}"
             hx-trigger="every 5s" hx-target="#log-stream">
             <div id="log-stream" class="text-slate-300 overflow-x-auto whitespace-pre">
-                <pre class='text-xs font-mono text-slate-300 bg-slate-900 p-4 rounded-xl overflow-x-auto'>{{ log_content }}</pre>
+                <pre
+                    class='text-xs font-mono text-slate-300 bg-slate-900 p-4 rounded-xl overflow-x-auto'>{{ log_content }}</pre>
             </div>
         </div>
 
         <!-- Bottom Status -->
         <div class="bg-white/5 px-8 py-3 border-t border-white/5 flex justify-between items-center">
             <p class="text-[10px] font-bold text-slate-500 italic">Self-refreshing every 5 seconds</p>
-            <button onclick="window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'})"
+            <button id="jumpToEndBtn"
                 class="text-[10px] font-bold text-slate-400 hover:text-white transition-colors flex items-center gap-2 uppercase tracking-widest">
                 <span>Jump to End</span>
                 <i data-lucide="arrow-down" class="w-3 h-3"></i>
