@@ -2,6 +2,11 @@
 # Update Postfix/Dovecot/SOGo configs to match the new table schema
 # users table columns: c_uid, c_name, c_password, c_cn, mail, domain_id
 
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
 # 1. Update Postfix MySQL Maps
 echo "Updating Postfix MySQL maps..."
 sudo tee /etc/postfix/mysql-virtual-mailbox-maps.cf > /dev/null <<EOF
@@ -83,30 +88,21 @@ EOF
 # 4. Update Rspamd Config for Local Blacklists
 echo "Updating Rspamd config..."
 
-# Create the map file if it doesn't exist
-touch /etc/rspamd/local.d/local_bl_from.map.inc
+sudo mkdir -p /etc/rspamd/local.d/maps.d
+sudo install -m 0644 "$ROOT_DIR/configs/rspamd/multimap.conf" /etc/rspamd/local.d/multimap.conf
+sudo install -m 0644 "$ROOT_DIR/configs/rspamd/groups.conf" /etc/rspamd/local.d/groups.conf
+sudo install -m 0644 "$ROOT_DIR/configs/rspamd/local_bl_from.map.inc" /etc/rspamd/local.d/local_bl_from.map.inc
+sudo install -m 0644 "$ROOT_DIR/configs/rspamd/maps.d/phish_keywords.map" /etc/rspamd/local.d/maps.d/phish_keywords.map
+sudo install -m 0644 "$ROOT_DIR/configs/rspamd/maps.d/site_issues_subject.map" /etc/rspamd/local.d/maps.d/site_issues_subject.map
+sudo install -m 0644 "$ROOT_DIR/configs/rspamd/maps.d/fake_delivery_subjects.map" /etc/rspamd/local.d/maps.d/fake_delivery_subjects.map
+sudo install -m 0644 "$ROOT_DIR/configs/rspamd/rspamd.local.lua" /etc/rspamd/rspamd.local.lua
 
-# Configure multimap module
-sudo tee /etc/rspamd/local.d/multimap.conf > /dev/null <<EOF
-LOCAL_BL_FROM {
-  type = "from";
-  filter = "email:domain";
-  map = "\${LOCAL_CONFDIR}/local.d/local_bl_from.map.inc";
-  symbol = "LOCAL_BL_FROM";
-  description = "Local From blacklist";
-}
-EOF
+sudo touch /var/lib/rspamd/auto_phish_domains.map
+sudo chown _rspamd:_rspamd /var/lib/rspamd/auto_phish_domains.map
+sudo chmod 0640 /var/lib/rspamd/auto_phish_domains.map
 
-# Configure symbol weight
-sudo tee /etc/rspamd/local.d/groups.conf > /dev/null <<EOF
-symbols {
-  "LOCAL_BL_FROM" {
-    weight = 1000.0;
-    description = "Sender is locally blacklisted";
-    groups = ["local_bl"];
-  }
-}
-EOF
+echo "Validating Rspamd config..."
+sudo rspamadm configtest
 
 # 5. Restart Services
 echo "Restarting services..."

@@ -1,18 +1,36 @@
-venv/
+# Python
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-.Python
-env/
+
+# Environment Variables
 .env
-.DS_Store
-*.sqlite3
-db.sqlite3
-*.log
-logs/
+config/.env
+mail_admin/.env
 secrets/
+infra_config/*.env
+!infra_config/.env.example
+.antigravitycli/
+spamrules/
+
+# Virtual Environment
+venv/
+env/
+
+# Editor
 .vscode/
 .idea/
-mail_admin/venv/
-mail_admin_staging/
+
+# OS
+.DS_Store
+
+# Runtime / local data
+logs/
+*.log
+*.sqlite3
+*.db
+db.sqlite3
+dev_mailserver.db
+
+# Archives
+*.tar.zst
+scripts/archive/
