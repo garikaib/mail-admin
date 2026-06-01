@@ -17,6 +17,7 @@ class DovecotVerifyRequest(BaseModel):
     # Support both direct root keys and nested structures (Dovecot HTTP auth protocol)
     login: Optional[str] = None
     rip: Optional[str] = None
+    remote: Optional[str] = None
     protocol: Optional[str] = None
     attributes: Optional[dict] = None
 
@@ -66,12 +67,12 @@ async def verify_dovecot_login(payload: DovecotVerifyRequest, db: Session = Depe
     """
     # Extract properties from standard payload or attributes dictionary
     username = payload.login
-    remote_ip = payload.rip
+    remote_ip = payload.rip or payload.remote
     protocol = payload.protocol or "imap"
 
     if payload.attributes:
         username = username or payload.attributes.get("login") or payload.attributes.get("user")
-        remote_ip = remote_ip or payload.attributes.get("rip") or payload.attributes.get("remote_ip")
+        remote_ip = remote_ip or payload.attributes.get("rip") or payload.attributes.get("remote_ip") or payload.attributes.get("remote")
         protocol = protocol or payload.attributes.get("protocol") or payload.attributes.get("service")
 
     if not username or not remote_ip:
