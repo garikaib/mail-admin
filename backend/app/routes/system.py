@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from backend.app.core.database import get_db
 from backend.app.core.dependencies import get_current_user
 from backend.app.core.permissions import require_permission
+from backend.app.core.sudo import popen_sudo, run_sudo, sudo_cmd
 from backend.app.models import AuthUser, ServerHealth, AdminLog
 from backend.app.schemas import AdminLogResponse
 
@@ -181,11 +182,11 @@ def journal_commands_for_service(service: str, limit: int, since: Optional[str],
             cmd.extend(["-p", priority_value])
         return cmd
 
-    commands.append(add_common_args(["sudo", "journalctl", "-u", service, "--no-pager", "-n", str(limit)]))
+    commands.append(sudo_cmd(add_common_args(["/usr/bin/journalctl", "-u", service, "--no-pager", "-n", str(limit)])))
     if not service.endswith(".service"):
-        commands.append(add_common_args(["sudo", "journalctl", "-u", f"{service}.service", "--no-pager", "-n", str(limit)]))
+        commands.append(sudo_cmd(add_common_args(["/usr/bin/journalctl", "-u", f"{service}.service", "--no-pager", "-n", str(limit)])))
     for identifier in JOURNAL_IDENTIFIERS.get(service, ()): 
-        commands.append(add_common_args(["sudo", "journalctl", "-t", identifier, "--no-pager", "-n", str(limit)]))
+        commands.append(sudo_cmd(add_common_args(["/usr/bin/journalctl", "-t", identifier, "--no-pager", "-n", str(limit)])))
     return commands
 
 
@@ -194,7 +195,7 @@ def file_log_lines_for_service(service: str, limit: int, q: Optional[str], prior
     if not source:
         return []
     read_count = min(max(limit * 20, 500), 10000)
-    lines = run_log_command(["sudo", "tail", "-n", str(read_count), source["path"]], timeout=5)
+    lines = run_log_command(sudo_cmd(["/usr/bin/tail", "-n", str(read_count), source["path"]]), timeout=5)
     return filter_log_lines(lines, source.get("terms", ()), q=q, priority=priority)[-limit:]
 
 
@@ -327,7 +328,7 @@ def parse_postfix_config(content: str) -> dict[str, str]:
 
 
 def write_with_sudo(path: str, content: str, timeout: int = 5) -> None:
-    write_proc = subprocess.Popen(["sudo", "tee", path], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    write_proc = popen_sudo(["/usr/bin/tee", path], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     stdout, stderr = write_proc.communicate(input=content, timeout=timeout)
     if write_proc.returncode != 0:
         raise RuntimeError(stderr.strip() or f"Failed to write {path}")
@@ -337,8 +338,8 @@ def prepare_nginx_site_validation(config_id: str, content: str) -> tuple[list[st
     filename = decode_site_id(config_id)
     tmp_dir = f"/tmp/mail_admin_validate_{config_id}_{os.getpid()}"
     sites_dir = os.path.join(tmp_dir, "sites-enabled")
-    subprocess.run(["sudo", "rm", "-rf", tmp_dir], check=True, timeout=5)
-    subprocess.run(["sudo", "mkdir", "-p", sites_dir], check=True, timeout=5)
+    run_sudo(["/usr/bin/rm", "-rf", tmp_dir], check=True, timeout=5)
+    run_sudo(["/usr/bin/mkdir", "-p", sites_dir], check=True, timeout=5)
     write_with_sudo(os.path.join(sites_dir, filename), content)
     nginx_conf = f"""events {{ worker_connections 128; }}
 http {{
@@ -348,7 +349,7 @@ http {{
 }}
 """
     write_with_sudo(os.path.join(tmp_dir, "nginx.conf"), nginx_conf)
-    return ["sudo", "/usr/sbin/nginx", "-t", "-c", os.path.join(tmp_dir, "nginx.conf")], tmp_dir
+    return sudo_cmd(["/usr/sbin/nginx", "-t", "-c", os.path.join(tmp_dir, "nginx.conf")]), tmp_dir
 
 
 def prepare_validation_command(config_id: str, active_path: str, check_cmd: list[str], content: str) -> tuple[list[str], str]:
@@ -359,24 +360,24 @@ def prepare_validation_command(config_id: str, active_path: str, check_cmd: list
 
     if config_id in {"postfix_main", "postfix_master"}:
         tmp_dir = tmp_base
-        subprocess.run(["sudo", "rm", "-rf", tmp_dir], check=True, timeout=5)
-        subprocess.run(["sudo", "mkdir", "-p", tmp_dir], check=True, timeout=5)
-        subprocess.run(["sudo", "cp", "-a", "/etc/postfix/.", tmp_dir], check=True, timeout=10)
+        run_sudo(["/usr/bin/rm", "-rf", tmp_dir], check=True, timeout=5)
+        run_sudo(["/usr/bin/mkdir", "-p", tmp_dir], check=True, timeout=5)
+        run_sudo(["/usr/bin/cp", "-a", "/etc/postfix/.", tmp_dir], check=True, timeout=10)
         staged_file = os.path.join(tmp_dir, "main.cf" if config_id == "postfix_main" else "master.cf")
         write_with_sudo(staged_file, content)
-        return ["sudo", "/usr/sbin/postfix", "-c", tmp_dir, "check"], tmp_dir
+        return sudo_cmd(["/usr/sbin/postfix", "-c", tmp_dir, "check"]), tmp_dir
 
     tmp_path = tmp_base
     write_with_sudo(tmp_path, content)
 
     if config_id == "nginx_global":
-        return ["sudo", "/usr/sbin/nginx", "-t", "-c", tmp_path], tmp_path
+        return sudo_cmd(["/usr/sbin/nginx", "-t", "-c", tmp_path]), tmp_path
     if config_id == "dovecot":
-        return ["sudo", "/usr/sbin/doveconf", "-c", tmp_path], tmp_path
+        return sudo_cmd(["/usr/sbin/doveconf", "-c", tmp_path]), tmp_path
     if config_id == "rspamd_local":
-        return ["sudo", "/usr/bin/rspamadm", "configtest", "-c", tmp_path], tmp_path
+        return sudo_cmd(["/usr/bin/rspamadm", "configtest", "-c", tmp_path]), tmp_path
 
-    return ["sudo"] + check_cmd, tmp_path
+    return sudo_cmd(check_cmd), tmp_path
 
 def get_service_info(service_name: str, display_name: str) -> dict:
     is_prod = is_prod_environment()
@@ -528,7 +529,7 @@ def control_service(
     # Production systemctl call
     try:
         # Run systemctl action
-        cmd = ["sudo", "systemctl", action, service]
+        cmd = sudo_cmd(["/usr/bin/systemctl", action, service])
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
         
         if result.returncode != 0:
@@ -578,7 +579,7 @@ def get_service_logs(
         
     try:
         # Run journalctl to stream logs
-        cmd = ["sudo", "journalctl", "-u", service, "--no-pager", "-n", str(limit)]
+        cmd = sudo_cmd(["/usr/bin/journalctl", "-u", service, "--no-pager", "-n", str(limit)])
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
         
         if result.returncode != 0:
@@ -636,7 +637,7 @@ def get_config_content(
     if is_prod:
         # Read using sudo cat to ensure access to root-owned files
         try:
-            cmd = ["sudo", "cat", active_path]
+            cmd = sudo_cmd(["/usr/bin/cat", active_path])
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
             if result.returncode != 0:
                 raise HTTPException(status_code=500, detail=f"Failed to read configuration: {result.stderr}")
@@ -695,7 +696,7 @@ def validate_config(
     try:
         cmd_check, cleanup_path = prepare_validation_command(config_id, active_path, check_cmd, payload.content)
         result = subprocess.run(cmd_check, capture_output=True, text=True, timeout=10)
-        subprocess.run(["sudo", "rm", "-rf", cleanup_path], capture_output=True, timeout=5)
+        run_sudo(["/usr/bin/rm", "-rf", cleanup_path], capture_output=True, timeout=5)
         cleanup_path = None
         
         if result.returncode != 0:
@@ -709,7 +710,7 @@ def validate_config(
         
     except Exception as e:
         if cleanup_path:
-            subprocess.run(["sudo", "rm", "-rf", cleanup_path], capture_output=True)
+            run_sudo(["/usr/bin/rm", "-rf", cleanup_path], capture_output=True)
         logger.error(f"Configuration validation failed: {e}")
         return {"valid": False, "message": f"Validation execution error: {str(e)}"}
 
@@ -774,18 +775,18 @@ def save_config(
                     )
             finally:
                 if cleanup_path:
-                    subprocess.run(["sudo", "rm", "-rf", cleanup_path], capture_output=True)
+                    run_sudo(["/usr/bin/rm", "-rf", cleanup_path], capture_output=True)
 
         # 1. Back up active file to active_bak
-        subprocess.run(["sudo", "cp", active_path, active_backup_path], check=True, timeout=5)
+        run_sudo(["/usr/bin/cp", active_path, active_backup_path], check=True, timeout=5)
         # Also copy to historical backups directory
-        subprocess.run(["sudo", "cp", active_path, backup_filepath], check=True, timeout=5)
+        run_sudo(["/usr/bin/cp", active_path, backup_filepath], check=True, timeout=5)
         
         # 2. Write new content or update using postconf
         if config_id == "postfix_main":
             current_raw = ""
             if os.path.exists(active_path):
-                cat_res = subprocess.run(["sudo", "cat", active_path], capture_output=True, text=True, timeout=5)
+                cat_res = run_sudo(["/usr/bin/cat", active_path], capture_output=True, text=True, timeout=5)
                 if cat_res.returncode == 0:
                     current_raw = cat_res.stdout
             current_params = parse_postfix_config(current_raw)
@@ -794,24 +795,24 @@ def save_config(
             # Deletions
             for key in current_params:
                 if key not in new_params:
-                    subprocess.run(["sudo", "postconf", "-X", key], check=True, timeout=5)
+                    run_sudo(["/usr/sbin/postconf", "-X", key], check=True, timeout=5)
             # Additions & updates
             for key, val in new_params.items():
                 if current_params.get(key) != val:
-                    subprocess.run(["sudo", "postconf", "-e", f"{key}={val}"], check=True, timeout=5)
+                    run_sudo(["/usr/sbin/postconf", "-e", f"{key}={val}"], check=True, timeout=5)
         else:
             write_with_sudo(active_path, payload.content)
         
         # 3. Perform syntax check if check_cmd exists
         if meta["check_cmd"]:
-            cmd_check = ["sudo"] + meta["check_cmd"]
+            cmd_check = sudo_cmd(meta["check_cmd"])
             check_result = subprocess.run(cmd_check, capture_output=True, text=True, timeout=5)
             
             if check_result.returncode != 0:
                 # Syntax validation failed! Atomic rollback!
-                subprocess.run(["sudo", "cp", active_backup_path, active_path], check=True, timeout=5)
+                run_sudo(["/usr/bin/cp", active_backup_path, active_path], check=True, timeout=5)
                 # Cleanup temp active backup
-                subprocess.run(["sudo", "rm", "-f", active_backup_path], check=True)
+                run_sudo(["/usr/bin/rm", "-f", active_backup_path], check=True)
                 
                 error_output = check_result.stderr if check_result.stderr.strip() else check_result.stdout
                 raise HTTPException(
@@ -820,16 +821,16 @@ def save_config(
                 )
                 
         # Cleanup temp active backup on success
-        subprocess.run(["sudo", "rm", "-f", active_backup_path], check=True)
+        run_sudo(["/usr/bin/rm", "-f", active_backup_path], check=True)
         
         # Reload the target service if configured
         reload_service = meta["service"]
         if reload_service:
-            reload_result = subprocess.run(
-                ["sudo", "systemctl", "reload", reload_service],
+            reload_result = run_sudo(
+                ["/usr/bin/systemctl", "reload", reload_service],
                 capture_output=True,
                 text=True,
-                timeout=10,
+                timeout=10
             )
             if reload_result.returncode != 0:
                 error_output = reload_result.stderr.strip() or reload_result.stdout.strip()
@@ -859,8 +860,8 @@ def save_config(
         raise
     except Exception as e:
         # Rollback on unexpected errors
-        subprocess.run(["sudo", "cp", active_backup_path, active_path], capture_output=True)
-        subprocess.run(["sudo", "rm", "-f", active_backup_path], capture_output=True)
+        run_sudo(["/usr/bin/cp", active_backup_path, active_path], capture_output=True)
+        run_sudo(["/usr/bin/rm", "-f", active_backup_path], capture_output=True)
         logger.error(f"Failed to edit config {config_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -889,23 +890,23 @@ def toggle_nginx_site(
     try:
         if is_prod:
             if target_enabled:
-                subprocess.run(["sudo", "ln", "-sf", available_path, enabled_path], check=True, timeout=5)
+                run_sudo(["/usr/bin/ln", "-sf", available_path, enabled_path], check=True, timeout=5)
             else:
-                subprocess.run(["sudo", "rm", "-f", enabled_path], check=True, timeout=5)
-            check_result = subprocess.run(["sudo", "/usr/sbin/nginx", "-t"], capture_output=True, text=True, timeout=10)
+                run_sudo(["/usr/bin/rm", "-f", enabled_path], check=True, timeout=5)
+            check_result = run_sudo(["/usr/sbin/nginx", "-t"], capture_output=True, text=True, timeout=10)
             if check_result.returncode != 0:
                 if was_enabled:
-                    subprocess.run(["sudo", "ln", "-sf", available_path, enabled_path], capture_output=True, timeout=5)
+                    run_sudo(["/usr/bin/ln", "-sf", available_path, enabled_path], capture_output=True, timeout=5)
                 else:
-                    subprocess.run(["sudo", "rm", "-f", enabled_path], capture_output=True, timeout=5)
+                    run_sudo(["/usr/bin/rm", "-f", enabled_path], capture_output=True, timeout=5)
                 error_output = check_result.stderr.strip() or check_result.stdout.strip()
                 raise HTTPException(status_code=422, detail=f"Nginx validation failed. Toggle rolled back.\n{error_output}")
-            reload_result = subprocess.run(["sudo", "systemctl", "reload", "nginx"], capture_output=True, text=True, timeout=10)
+            reload_result = run_sudo(["/usr/bin/systemctl", "reload", "nginx"], capture_output=True, text=True, timeout=10)
             if reload_result.returncode != 0:
                 if was_enabled:
-                    subprocess.run(["sudo", "ln", "-sf", available_path, enabled_path], capture_output=True, timeout=5)
+                    run_sudo(["/usr/bin/ln", "-sf", available_path, enabled_path], capture_output=True, timeout=5)
                 else:
-                    subprocess.run(["sudo", "rm", "-f", enabled_path], capture_output=True, timeout=5)
+                    run_sudo(["/usr/bin/rm", "-f", enabled_path], capture_output=True, timeout=5)
                 error_output = reload_result.stderr.strip() or reload_result.stdout.strip()
                 raise HTTPException(status_code=500, detail=f"Nginx reload failed. Toggle rolled back.\n{error_output}")
         else:

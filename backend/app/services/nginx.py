@@ -1,4 +1,5 @@
 import subprocess
+from backend.app.core.sudo import run_sudo
 import logging
 import os
 
@@ -87,8 +88,8 @@ server {{
         try:
             # Write config using sudo tee
             logger.info(f"[{domain}] Writing config to {available_path}...")
-            process = subprocess.run(
-                ["sudo", "/usr/bin/tee", available_path],
+            process = run_sudo(
+                ["/usr/bin/tee", available_path],
                 input=config_content,
                 text=True,
                 capture_output=True,
@@ -98,8 +99,8 @@ server {{
             
             # Link using sudo ln -sf to be completely idempotent
             logger.info(f"[{domain}] Creating/updating symlink at {enabled_path}...")
-            subprocess.run(
-                ["sudo", "/usr/bin/ln", "-sf", available_path, enabled_path],
+            run_sudo(
+                ["/usr/bin/ln", "-sf", available_path, enabled_path],
                 check=True,
                 capture_output=True
             )
@@ -116,11 +117,11 @@ server {{
         """Test and reload Nginx."""
         logger.info(f"[{domain}] Testing Nginx configuration (nginx -t)...")
         try:
-            test_resp = subprocess.run(["sudo", "nginx", "-t"], check=True, capture_output=True, text=True)
+            test_resp = run_sudo(["/usr/sbin/nginx", "-t"], check=True, capture_output=True, text=True)
             logger.info(f"[{domain}] Nginx test successful: {test_resp.stderr}")
             
             logger.info(f"[{domain}] Reloading Nginx service...")
-            subprocess.run(["sudo", "systemctl", "reload", "nginx"], check=True, capture_output=True)
+            run_sudo(["/usr/bin/systemctl", "reload", "nginx"], check=True, capture_output=True)
             logger.info(f"[{domain}] Nginx reloaded successfully.")
             return True
         except subprocess.CalledProcessError as e:
@@ -140,11 +141,11 @@ server {{
         try:
             # Remove link using -f to be safe against missing/broken symlinks
             logger.info(f"[{domain}] Rollback: Removing symlink {enabled_path}")
-            subprocess.run(["sudo", "/usr/bin/rm", "-f", enabled_path], check=True)
+            run_sudo(["/usr/bin/rm", "-f", enabled_path], check=True)
                 
             # Remove file using -f
             logger.info(f"[{domain}] Rollback: Removing file {available_path}")
-            subprocess.run(["sudo", "/usr/bin/rm", "-f", available_path], check=True)
+            run_sudo(["/usr/bin/rm", "-f", available_path], check=True)
                 
             self.reload_nginx(domain)
             return True

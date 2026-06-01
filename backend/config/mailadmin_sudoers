@@ -1,2 +1,63 @@
-mailadmin ALL=(ALL) NOPASSWD: /usr/bin/lego, /usr/sbin/nginx, /usr/bin/systemctl reload nginx, /usr/bin/mkdir, /usr/bin/chown, /usr/bin/chmod, /usr/bin/rspamadm, /usr/bin/tee, /usr/bin/systemctl reload rspamd, /usr/bin/systemctl restart rspamd, /usr/bin/ln -s /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*, /usr/bin/ln -sf /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*, /usr/bin/rm -f /etc/lego/certificates/*, /usr/bin/rm -rf /etc/lego/certificates/*, /usr/bin/rm -f /etc/nginx/sites-enabled/*, /usr/bin/rm -f /etc/nginx/sites-available/*, /usr/bin/rm -rf /var/lib/rspamd/dkim/*, /usr/bin/systemctl start postfix, /usr/bin/systemctl stop postfix, /usr/bin/systemctl restart postfix, /usr/bin/systemctl reload postfix, /usr/bin/systemctl status postfix, /usr/bin/systemctl start dovecot, /usr/bin/systemctl stop dovecot, /usr/bin/systemctl restart dovecot, /usr/bin/systemctl reload dovecot, /usr/bin/systemctl status dovecot, /usr/bin/systemctl start mariadb, /usr/bin/systemctl stop mariadb, /usr/bin/systemctl restart mariadb, /usr/bin/systemctl reload mariadb, /usr/bin/systemctl status mariadb, /usr/bin/systemctl start nginx, /usr/bin/systemctl stop nginx, /usr/bin/systemctl restart nginx, /usr/bin/systemctl status nginx, /usr/bin/systemctl start mail-admin, /usr/bin/systemctl stop mail-admin, /usr/bin/systemctl restart mail-admin, /usr/bin/systemctl reload mail-admin, /usr/bin/systemctl status mail-admin, /usr/bin/systemctl start rspamd, /usr/bin/systemctl stop rspamd, /usr/bin/systemctl reload rspamd, /usr/bin/systemctl status rspamd, /usr/bin/systemctl start sogo, /usr/bin/systemctl stop sogo, /usr/bin/systemctl restart sogo, /usr/bin/systemctl reload sogo, /usr/bin/systemctl status sogo, /usr/bin/systemctl start redis-server, /usr/bin/systemctl stop redis-server, /usr/bin/systemctl restart redis-server, /usr/bin/systemctl reload redis-server, /usr/bin/systemctl status redis-server, /usr/bin/journalctl -u postfix *, /usr/bin/journalctl -u dovecot *, /usr/bin/journalctl -u mariadb *, /usr/bin/journalctl -u nginx *, /usr/bin/journalctl -u mail-admin *, /usr/bin/journalctl -u rspamd *, /usr/bin/journalctl -u sogo *, /usr/bin/journalctl -u redis-server *, /usr/bin/tail -n * /var/log/mail.log, /usr/bin/tail -n * /var/log/rspamd/rspamd.log, /usr/bin/tail -n * /var/log/sogo/sogo.log, /usr/bin/tail -n * /var/log/redis/redis-server.log, /usr/bin/cat /etc/postfix/main.cf, /usr/bin/cat /etc/postfix/master.cf, /usr/bin/cat /etc/dovecot/dovecot.conf, /usr/bin/cat /etc/dovecot/conf.d/*, /usr/bin/cat /etc/rspamd/rspamd.local.lua, /usr/bin/cat /etc/rspamd/local.d/*, /usr/bin/cat /etc/rspamd/override.d/*, /usr/bin/cat /etc/sogo/sogo.conf, /usr/bin/cat /etc/nginx/nginx.conf, /usr/bin/cat /etc/nginx/sites-available/*, /usr/bin/tee /etc/postfix/main.cf, /usr/bin/tee /etc/postfix/master.cf, /usr/bin/tee /etc/dovecot/dovecot.conf, /usr/bin/tee /etc/dovecot/conf.d/*, /usr/bin/tee /etc/rspamd/rspamd.local.lua, /usr/bin/tee /etc/rspamd/local.d/*, /usr/bin/tee /etc/rspamd/override.d/*, /usr/bin/tee /etc/sogo/sogo.conf, /usr/bin/tee /etc/nginx/nginx.conf, /usr/bin/tee /etc/nginx/sites-available/*, /usr/sbin/postfix check, /usr/sbin/doveconf, /usr/bin/rspamadm configtest, /usr/bin/cp -a /etc/postfix/. /tmp/mail_admin_validate_*, /usr/bin/rm -rf /tmp/mail_admin_validate_*, /usr/bin/rm -f /tmp/mail_admin_validate_*, /usr/bin/mkdir -p /tmp/mail_admin_validate_*, /usr/bin/tee /tmp/mail_admin_validate_*, /usr/bin/tee /tmp/mail_admin_validate_*/*, /usr/sbin/postfix -c /tmp/mail_admin_validate_* check, /usr/sbin/nginx -t -c /tmp/mail_admin_validate_*, /usr/sbin/doveconf -c /tmp/mail_admin_validate_*, /usr/bin/rspamadm configtest -c /tmp/mail_admin_validate_*, /usr/bin/cp /etc/nginx/sites-available/* /etc/nginx/sites-available/*.active_bak, /usr/bin/cp /etc/nginx/sites-available/*.active_bak /etc/nginx/sites-available/*, /usr/bin/cp /etc/nginx/sites-available/* /opt/mail_admin/backups/configs/*, /usr/bin/rm -f /etc/nginx/sites-available/*.active_bak, /usr/bin/mkdir -p /tmp/mail_admin_validate_*/*, /usr/sbin/postconf
+# Mail Admin Platform - restricted commands for the mailadmin service user.
+# Keep this file aligned with backend/app subprocess calls. Validate with:
+#   visudo -cf backend/config/mailadmin_sudoers
 
+Defaults:mailadmin env_keep += "CLOUDFLARE_DNS_API_TOKEN CLOUDFLARE_EMAIL CLOUDFLARE_API_KEY SSL_CONTACT_EMAIL"
+
+Cmnd_Alias MAILADMIN_SERVICE = \
+    /usr/bin/systemctl status postfix, /usr/bin/systemctl start postfix, /usr/bin/systemctl stop postfix, /usr/bin/systemctl restart postfix, /usr/bin/systemctl reload postfix, \
+    /usr/bin/systemctl status dovecot, /usr/bin/systemctl start dovecot, /usr/bin/systemctl stop dovecot, /usr/bin/systemctl restart dovecot, /usr/bin/systemctl reload dovecot, \
+    /usr/bin/systemctl status mariadb, /usr/bin/systemctl start mariadb, /usr/bin/systemctl stop mariadb, /usr/bin/systemctl restart mariadb, /usr/bin/systemctl reload mariadb, \
+    /usr/bin/systemctl status nginx, /usr/bin/systemctl start nginx, /usr/bin/systemctl stop nginx, /usr/bin/systemctl restart nginx, /usr/bin/systemctl reload nginx, \
+    /usr/bin/systemctl status mail-admin, /usr/bin/systemctl start mail-admin, /usr/bin/systemctl stop mail-admin, /usr/bin/systemctl restart mail-admin, /usr/bin/systemctl reload mail-admin, \
+    /usr/bin/systemctl status rspamd, /usr/bin/systemctl start rspamd, /usr/bin/systemctl stop rspamd, /usr/bin/systemctl restart rspamd, /usr/bin/systemctl reload rspamd, \
+    /usr/bin/systemctl status sogo, /usr/bin/systemctl start sogo, /usr/bin/systemctl stop sogo, /usr/bin/systemctl restart sogo, /usr/bin/systemctl reload sogo, \
+    /usr/bin/systemctl status redis-server, /usr/bin/systemctl start redis-server, /usr/bin/systemctl stop redis-server, /usr/bin/systemctl restart redis-server, /usr/bin/systemctl reload redis-server
+
+Cmnd_Alias MAILADMIN_LOGS = \
+    /usr/bin/journalctl -u postfix *, /usr/bin/journalctl -u dovecot *, /usr/bin/journalctl -u mariadb *, /usr/bin/journalctl -u nginx *, \
+    /usr/bin/journalctl -u mail-admin *, /usr/bin/journalctl -u ssh *, /usr/bin/journalctl -u ssh.service *, /usr/bin/journalctl -u rspamd *, /usr/bin/journalctl -u sogo *, /usr/bin/journalctl -u redis-server *, \
+    /usr/bin/journalctl -t postfix *, /usr/bin/journalctl -t dovecot *, /usr/bin/journalctl -t nginx *, /usr/bin/journalctl -t rspamd *, \
+    /usr/bin/tail -n * /var/log/mail.log, /usr/bin/tail -n * /var/log/rspamd/rspamd.log, /usr/bin/tail -n * /var/log/sogo/sogo.log, /usr/bin/tail -n * /var/log/redis/redis-server.log
+
+Cmnd_Alias MAILADMIN_READ_CONFIG = \
+    /usr/bin/cat /etc/postfix/main.cf, /usr/bin/cat /etc/postfix/master.cf, /usr/bin/cat /etc/dovecot/dovecot.conf, /usr/bin/cat /etc/dovecot/conf.d/*, \
+    /usr/bin/cat /etc/rspamd/rspamd.local.lua, /usr/bin/cat /etc/rspamd/local.d/*, /usr/bin/cat /etc/rspamd/override.d/*, \
+    /usr/bin/cat /etc/sogo/sogo.conf, /usr/bin/cat /etc/nginx/nginx.conf, /usr/bin/cat /etc/nginx/sites-available/*
+
+Cmnd_Alias MAILADMIN_WRITE_CONFIG = \
+    /usr/bin/tee /etc/postfix/main.cf, /usr/bin/tee /etc/postfix/master.cf, /usr/bin/tee /etc/dovecot/dovecot.conf, /usr/bin/tee /etc/dovecot/conf.d/*, \
+    /usr/bin/tee /etc/rspamd/rspamd.local.lua, /usr/bin/tee /etc/rspamd/local.d/*, /usr/bin/tee /etc/rspamd/override.d/*, \
+    /usr/bin/tee /etc/sogo/sogo.conf, /usr/bin/tee /etc/nginx/nginx.conf, /usr/bin/tee /etc/nginx/sites-available/*, \
+    /usr/bin/tee /tmp/mail_admin_validate_*, /usr/bin/tee /tmp/mail_admin_validate_*/*
+
+Cmnd_Alias MAILADMIN_VALIDATE = \
+    /usr/sbin/postfix check, /usr/sbin/postfix -c /tmp/mail_admin_validate_* check, /usr/sbin/postconf, /usr/sbin/postconf *, \
+    /usr/sbin/doveconf, /usr/sbin/doveconf -c /tmp/mail_admin_validate_*, \
+    /usr/sbin/nginx -t, /usr/sbin/nginx -t -c /tmp/mail_admin_validate_*, \
+    /usr/bin/rspamadm configtest, /usr/bin/rspamadm configtest -c /tmp/mail_admin_validate_*, /usr/bin/rspamadm dkim_keygen *
+
+Cmnd_Alias MAILADMIN_FILES = \
+    /usr/bin/mkdir -p /var/vmail/*, /usr/bin/chown -R vmail\:vmail /var/vmail/*, /usr/bin/rm -rf /var/vmail/*, \
+    /usr/bin/mkdir -p /var/lib/rspamd/dkim/*, /usr/bin/chown -R _rspamd\:_rspamd /var/lib/rspamd/dkim, /usr/bin/chown _rspamd\:_rspamd /var/lib/rspamd/dkim/*, \
+    /usr/bin/chmod 750 /var/lib/rspamd/dkim, /usr/bin/chmod 440 /var/lib/rspamd/dkim/*, /usr/bin/rm -rf /var/lib/rspamd/dkim/*, \
+    /usr/bin/rm -f /etc/lego/certificates/*, /usr/bin/rm -rf /etc/lego/certificates/*, \
+    /usr/bin/rm -f /etc/nginx/sites-enabled/*, /usr/bin/rm -f /etc/nginx/sites-available/*, \
+    /usr/bin/ln -s /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*, /usr/bin/ln -sf /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*, \
+    /usr/bin/cp -a /etc/postfix/. /tmp/mail_admin_validate_*, /usr/bin/cp /etc/nginx/sites-available/* /etc/nginx/sites-available/*.active_bak, \
+    /usr/bin/cp /etc/nginx/sites-available/*.active_bak /etc/nginx/sites-available/*, /usr/bin/cp /etc/nginx/sites-available/* /opt/mail_admin/backups/configs/*, \
+    /usr/bin/cp /etc/* /opt/mail_admin/backups/configs/*, /usr/bin/cp /etc/postfix/* /opt/mail_admin/backups/configs/*, \
+    /usr/bin/rm -rf /tmp/mail_admin_validate_*, /usr/bin/rm -f /tmp/mail_admin_validate_*, /usr/bin/mkdir -p /tmp/mail_admin_validate_*, /usr/bin/mkdir -p /tmp/mail_admin_validate_*/*, \
+    /usr/bin/rm -f /etc/nginx/sites-available/*.active_bak
+
+Cmnd_Alias MAILADMIN_NFT = \
+    /usr/sbin/nft add element ip filter geo_mail_bans *, /usr/sbin/nft add element ip filter geo_ssh_bans *, \
+    /usr/sbin/nft add element ip6 filter geo_mail_bans_v6 *, /usr/sbin/nft add element ip6 filter geo_ssh_bans_v6 *, \
+    /usr/sbin/nft delete element ip filter geo_mail_bans *, /usr/sbin/nft delete element ip filter geo_ssh_bans *, \
+    /usr/sbin/nft delete element ip6 filter geo_mail_bans_v6 *, /usr/sbin/nft delete element ip6 filter geo_ssh_bans_v6 *
+
+Cmnd_Alias MAILADMIN_SSL = /usr/local/bin/lego *, /usr/bin/lego *
+Cmnd_Alias MAILADMIN_DOVECOT = /usr/sbin/doveadm reload
+
+mailadmin ALL=(root) NOPASSWD: MAILADMIN_SERVICE, MAILADMIN_LOGS, MAILADMIN_READ_CONFIG, MAILADMIN_WRITE_CONFIG, MAILADMIN_VALIDATE, MAILADMIN_FILES, MAILADMIN_NFT, MAILADMIN_DOVECOT
+mailadmin ALL=(root) NOPASSWD:SETENV: MAILADMIN_SSL

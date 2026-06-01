@@ -1,4 +1,5 @@
 import subprocess
+from backend.app.core.sudo import run_sudo
 import logging
 import os
 import re
@@ -51,11 +52,11 @@ class DKIMService:
             entry = f"\n    {domain} {{\n        path = \"{key_path}\";\n        selector = \"{selector}\";\n    }}\n"
             new_content = content[:insert_idx] + entry + content[insert_idx:]
             
-            subprocess.run(["sudo", "tee", conf_path], input=new_content, text=True, check=True, capture_output=True)
+            run_sudo(["/usr/bin/tee", conf_path], input=new_content, text=True, check=True, capture_output=True)
             logger.info(f"Added {domain} to {conf_path} successfully")
             
             # Reload rspamd
-            subprocess.run(["sudo", "systemctl", "reload", "rspamd"], check=True, capture_output=True)
+            run_sudo(["/usr/bin/systemctl", "reload", "rspamd"], check=True, capture_output=True)
             logger.info("Reloaded rspamd service")
         except Exception as e:
             logger.exception(f"Failed to register domain in Rspamd: {e}")
@@ -86,11 +87,11 @@ class DKIMService:
             new_content = content.replace(block, "")
             new_content = re.sub(r'\n\s*\n', '\n\n', new_content)
             
-            subprocess.run(["sudo", "tee", conf_path], input=new_content, text=True, check=True, capture_output=True)
+            run_sudo(["/usr/bin/tee", conf_path], input=new_content, text=True, check=True, capture_output=True)
             logger.info(f"Removed {domain} from {conf_path} successfully")
             
             # Reload rspamd
-            subprocess.run(["sudo", "systemctl", "reload", "rspamd"], check=True, capture_output=True)
+            run_sudo(["/usr/bin/systemctl", "reload", "rspamd"], check=True, capture_output=True)
             logger.info("Reloaded rspamd service")
         except Exception as e:
             logger.exception(f"Failed to unregister domain in Rspamd: {e}")
@@ -113,9 +114,9 @@ class DKIMService:
         if not os.path.exists(key_dir):
             try:
                 logger.info(f"[{domain}] Creating DKIM directory: {key_dir}")
-                subprocess.run(["sudo", "mkdir", "-p", key_dir], check=True, capture_output=True)
-                subprocess.run(["sudo", "chown", "-R", "_rspamd:_rspamd", self.DKIM_KEYS_DIR], check=False, capture_output=True) 
-                subprocess.run(["sudo", "chmod", "750", self.DKIM_KEYS_DIR], check=False, capture_output=True)
+                run_sudo(["/usr/bin/mkdir", "-p", key_dir], check=True, capture_output=True)
+                run_sudo(["/usr/bin/chown", "-R", "_rspamd:_rspamd", self.DKIM_KEYS_DIR], check=False, capture_output=True) 
+                run_sudo(["/usr/bin/chmod", "750", self.DKIM_KEYS_DIR], check=False, capture_output=True)
             except subprocess.CalledProcessError as e:
                 logger.error(f"[{domain}] Failed to setup DKIM directory: {e.stderr}")
                 return None, None
@@ -128,8 +129,8 @@ class DKIMService:
         try:
             # 1. Generate Key
             logger.info(f"[{domain}] Generating 2048-bit RSA key for {domain} at {private_key_path}...")
-            gen_resp = subprocess.run([
-                "sudo", "rspamadm", "dkim_keygen",
+            gen_resp = run_sudo([
+                "/usr/bin/rspamadm", "dkim_keygen",
                 "-s", selector,
                 "-d", domain,
                 "-k", private_key_path,
@@ -139,8 +140,8 @@ class DKIMService:
             
             # 2. Fix Permissions on the key file
             logger.info(f"[{domain}] Fixing key file permissions...")
-            subprocess.run(["sudo", "chown", "_rspamd:_rspamd", private_key_path], check=True, capture_output=True)
-            subprocess.run(["sudo", "chmod", "440", private_key_path], check=True, capture_output=True)
+            run_sudo(["/usr/bin/chown", "_rspamd:_rspamd", private_key_path], check=True, capture_output=True)
+            run_sudo(["/usr/bin/chmod", "440", private_key_path], check=True, capture_output=True)
             logger.info(f"[{domain}] Key file permissions fixed.")
 
             # 3. Parse Public Key from rspamadm output. With -k, rspamadm writes
@@ -181,7 +182,7 @@ class DKIMService:
         
         if os.path.exists(key_dir):
             try:
-                subprocess.run(["sudo", "/usr/bin/rm", "-rf", key_dir], check=True)
+                run_sudo(["/usr/bin/rm", "-rf", key_dir], check=True)
                 logger.info(f"[{domain}] DKIM keys removed successfully.")
                 return True
             except subprocess.CalledProcessError as e:

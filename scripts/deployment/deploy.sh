@@ -19,6 +19,16 @@ PROJECT_ROOT=$(pwd)
 echo "🚀 Starting FastAPI/React bundle-based deployment to $REMOTE_HOST..."
 echo "📂 Project Root: $PROJECT_ROOT"
 
+# 0. Validate backend sudo usage and sudoers syntax before bundling
+echo "🔐 Auditing backend sudo calls..."
+python3 scripts/audit/audit_sudo_calls.py
+if command -v visudo >/dev/null 2>&1; then
+    echo "🔐 Validating sudoers syntax..."
+    visudo -cf backend/config/mailadmin_sudoers
+else
+    echo "⚠️  visudo not found locally; remote validation will still run before install."
+fi
+
 # 1. Build frontend React production assets
 echo "🏗️  Building React frontend locally..."
 cd "$PROJECT_ROOT/frontend"
@@ -100,10 +110,21 @@ ssh -t "$REMOTE_USER@$REMOTE_HOST" << EOF
 
     # Apply Sudoers Configuration
     if [ -f "backend/config/mailadmin_sudoers" ]; then
+        echo "Validating sudoers configuration for $SERVICE_USER..."
+        sudo visudo -cf backend/config/mailadmin_sudoers
         echo "Applying sudoers configuration for $SERVICE_USER..."
         sudo cp backend/config/mailadmin_sudoers /etc/sudoers.d/mailadmin
         sudo chmod 440 /etc/sudoers.d/mailadmin
         sudo chown root:root /etc/sudoers.d/mailadmin
+        sudo visudo -cf /etc/sudoers.d/mailadmin
+    fi
+
+    # Apply SSH Geo Check script
+    if [ -f "scripts/security/ssh-geo-check.py" ]; then
+        echo "Installing SSH GeoIP Check hook..."
+        sudo cp scripts/security/ssh-geo-check.py /usr/local/bin/ssh-geo-check.py
+        sudo chmod 755 /usr/local/bin/ssh-geo-check.py
+        sudo chown root:root /usr/local/bin/ssh-geo-check.py
     fi
 
     # Migrate Systemd service configuration to Uvicorn (FastAPI)

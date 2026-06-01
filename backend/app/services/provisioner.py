@@ -4,6 +4,7 @@ import time
 import secrets
 import string
 import subprocess
+from backend.app.core.sudo import run_sudo
 import os
 from passlib.hash import sha512_crypt
 from sqlalchemy.orm import Session
@@ -86,7 +87,7 @@ class DomainProvisioner:
                     f"/etc/lego/certificates/_.{domain}.json"
                 ]
                 for cert_file in cert_files:
-                    subprocess.run(["sudo", "/usr/bin/rm", "-f", cert_file], capture_output=True)
+                    run_sudo(["/usr/bin/rm", "-f", cert_file], capture_output=True)
                 self.log_step(db, domain, "ROLLBACK", "INFO", "Removed SSL certificates")
             except Exception as e:
                 logger.error(f"SSL Rollback failed: {e}")
@@ -483,8 +484,8 @@ class DomainProvisioner:
                 ]
                 
                 for cert_file in cert_files:
-                    subprocess.run(
-                        ["sudo", "/usr/bin/rm", "-f", cert_file],
+                    run_sudo(
+                        ["/usr/bin/rm", "-f", cert_file],
                         capture_output=True,
                         text=True
                     )
@@ -586,8 +587,8 @@ class DomainProvisioner:
             try:
                 vmail_path = f"/var/vmail/{domain}"
                 logger.info(f"[{domain}] Removing mail directory {vmail_path}...")
-                subprocess.run(
-                    ["sudo", "/usr/bin/rm", "-rf", vmail_path],
+                run_sudo(
+                    ["/usr/bin/rm", "-rf", vmail_path],
                     check=True,
                     capture_output=True
                 )

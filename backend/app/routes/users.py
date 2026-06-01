@@ -1,7 +1,7 @@
 import re
 import os
 import logging
-import subprocess
+from backend.app.core.sudo import run_sudo
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -143,8 +143,8 @@ def create_mailbox_user(
     # Generate maildir
     maildir_path = f"/var/vmail/{domain_name}/{username}"
     try:
-        subprocess.run(["/usr/bin/sudo", "/usr/bin/mkdir", "-p", maildir_path], check=True)
-        subprocess.run(["/usr/bin/sudo", "/usr/bin/chown", "-R", "vmail:vmail", f"/var/vmail/{domain_name}"], check=True)
+        run_sudo(["/usr/bin/mkdir", "-p", maildir_path], check=True)
+        run_sudo(["/usr/bin/chown", "-R", "vmail:vmail", f"/var/vmail/{domain_name}"], check=True)
     except Exception as e:
         logger.error(f"Maildir creation failed for {email}: {e}")
         # We don't rollback the DB transaction as the mailbox is already created and can be fixed later
@@ -268,7 +268,7 @@ def delete_mailbox_user(
     # 1. Physical Purge (Maildir)
     maildir_path = f"/var/vmail/{domain.name}/{username}"
     try:
-        subprocess.run(["/usr/bin/sudo", "/usr/bin/rm", "-rf", maildir_path], check=True)
+        run_sudo(["/usr/bin/rm", "-rf", maildir_path], check=True)
     except Exception as e:
         logger.error(f"Failed to purge Maildir for {email}: {e}")
         

@@ -1,6 +1,7 @@
 import subprocess
 import logging
 import os
+from backend.app.core.sudo import run_sudo
 
 logger = logging.getLogger(__name__)
 
@@ -32,17 +33,16 @@ class SSLService:
             logger.error(f"[{domain}] SSL_CONTACT_EMAIL is required when provisioning SSL with an API token.")
             return False
 
-        cmd = ["sudo"]
-        
+        env = os.environ.copy()
         if cf_token:
-             cmd.append(f"CLOUDFLARE_DNS_API_TOKEN={cf_token}")
-             logger.info(f"[{domain}] Provisioning SSL using API Token")
+            env["CLOUDFLARE_DNS_API_TOKEN"] = cf_token
+            logger.info(f"[{domain}] Provisioning SSL using API Token")
         else:
-             cmd.append(f"CLOUDFLARE_EMAIL={cf_email}")
-             cmd.append(f"CLOUDFLARE_API_KEY={cf_key}")
-             logger.info(f"[{domain}] Provisioning SSL using Global API Key ({cf_email})")
+            env["CLOUDFLARE_EMAIL"] = cf_email or ""
+            env["CLOUDFLARE_API_KEY"] = cf_key or ""
+            logger.info(f"[{domain}] Provisioning SSL using Global API Key ({cf_email})")
 
-        cmd.extend([
+        cmd = [
             self.LEGO_PATH,
             "--email", reg_email,
             "--dns", "cloudflare",
@@ -51,9 +51,7 @@ class SSLService:
             "--path", "/etc/lego",
             "--accept-tos",
             "run"
-        ])
-        
-        env = os.environ.copy()
+        ]
         
         try:
             logger.info(f"Running lego for domain {domain}...")
@@ -61,12 +59,13 @@ class SSLService:
             log_env = {k: "REDACTED" if "CLOUDFLARE" in k else v for k, v in env.items()}
             logger.debug(f"SSL Command: {' '.join(cmd)}")
             
-            result = subprocess.run(
+            result = run_sudo(
                 cmd, 
                 env=env, 
                 check=True, 
                 capture_output=True, 
-                text=True
+                text=True,
+                preserve_env=("CLOUDFLARE_DNS_API_TOKEN", "CLOUDFLARE_EMAIL", "CLOUDFLARE_API_KEY")
             )
             logger.info(f"Lego finished successfully for {domain}")
             logger.debug(f"Lego stdout: {result.stdout}")
