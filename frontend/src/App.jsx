@@ -81,6 +81,51 @@ const getFlagEmoji = (countryCode) => {
   }
 };
 
+const parseUTC = (dateVal) => {
+  if (!dateVal) return null;
+  if (typeof dateVal === 'string') {
+    let cleanVal = dateVal.trim();
+    if (!cleanVal.endsWith('Z') && !cleanVal.includes('+') && !/-\d{2}:\d{2}$/.test(cleanVal)) {
+      if (!cleanVal.includes('T') && cleanVal.includes(' ')) {
+        cleanVal = cleanVal.replace(' ', 'T');
+      }
+      cleanVal = cleanVal + 'Z';
+    }
+    return new Date(cleanVal);
+  }
+  return new Date(dateVal);
+};
+
+const formatDateTime = (dateVal) => {
+  const d = parseUTC(dateVal);
+  if (!d || isNaN(d.getTime())) return 'N/A';
+  try {
+    return d.toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Harare' });
+  } catch (e) {
+    return d.toLocaleString();
+  }
+};
+
+const formatDateOnly = (dateVal) => {
+  const d = parseUTC(dateVal);
+  if (!d || isNaN(d.getTime())) return 'N/A';
+  try {
+    return d.toLocaleDateString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Harare' });
+  } catch (e) {
+    return d.toLocaleDateString();
+  }
+};
+
+const formatTimeOnly = (dateVal) => {
+  const d = parseUTC(dateVal);
+  if (!d || isNaN(d.getTime())) return 'N/A';
+  try {
+    return d.toLocaleTimeString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Harare' });
+  } catch (e) {
+    return d.toLocaleTimeString();
+  }
+};
+
 const DASHBOARD_ROUTES = [
   {
     path: 'domains',
@@ -3447,7 +3492,7 @@ export default function App() {
                               <tr key={c.id} className="border-b border-white/5 hover:bg-white/2 transition-colors">
                                 <td className="p-4 text-sm font-bold text-white">{c.label}</td>
                                 <td className="p-4 text-sm text-slate-300 font-mono">{c.email}</td>
-                                <td className="p-4 text-xs text-slate-400">{new Date(c.created_at).toLocaleDateString()}</td>
+                                <td className="p-4 text-xs text-slate-400">{formatDateOnly(c.created_at)}</td>
                                 <td className="p-4 text-right">
                                   <div className="flex items-center justify-end gap-2">
                                     <button 
@@ -3756,7 +3801,7 @@ export default function App() {
                               <div className="flex justify-between"><span className="text-slate-400">Server Host:</span><span className="text-white font-mono">mail.zimprices.co.zw</span></div>
                               <div className="flex justify-between"><span className="text-slate-400">Server IP:</span><span className="text-white font-mono">51.77.222.232</span></div>
                               <div className="flex justify-between"><span className="text-slate-400">Uptime:</span><span className="text-white">{systemHealth.metrics.uptime}</span></div>
-                              <div className="flex justify-between"><span className="text-slate-400">Last Metrics Check:</span><span className="text-white">{systemHealth.metrics.updated_at ? new Date(systemHealth.metrics.updated_at).toLocaleTimeString() : 'N/A'}</span></div>
+                              <div className="flex justify-between"><span className="text-slate-400">Last Metrics Check:</span><span className="text-white">{formatTimeOnly(systemHealth.metrics.updated_at)}</span></div>
                             </div>
                           </div>
                           <button 
@@ -4424,7 +4469,7 @@ export default function App() {
                           {auditLogs.length > 0 ? (
                             auditLogs.map(l => (
                               <tr key={l.id} className="border-b border-white/5 text-sm hover:bg-white/2">
-                                <td className="p-4 text-xs text-slate-400 font-mono">{new Date(l.timestamp).toLocaleString()}</td>
+                                <td className="p-4 text-xs text-slate-400 font-mono">{formatDateTime(l.timestamp)}</td>
                                 <td className="p-4 text-slate-300 font-semibold">{l.admin_email}</td>
                                 <td className="p-4">
                                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
@@ -4528,7 +4573,7 @@ export default function App() {
                                 <tr key={u.id} className="border-b border-white/5 text-sm hover:bg-white/2">
                                   <td className="p-4">
                                     <div className="font-semibold text-slate-200">{u.username}</div>
-                                    <div className="text-[10px] text-slate-400 mt-0.5">Joined: {new Date(u.date_joined).toLocaleDateString()}</div>
+                                    <div className="text-[10px] text-slate-400 mt-0.5">Joined: {formatDateOnly(u.date_joined)}</div>
                                   </td>
                                   <td className="p-4">
                                     <div className="flex flex-wrap gap-1.5">
@@ -5310,7 +5355,7 @@ export default function App() {
                                   </span>
                                 </td>
                                 <td className="p-4 text-slate-400 text-xs font-mono">
-                                  {new Date(r.submitted_at).toLocaleString()}
+                                  {formatDateTime(r.submitted_at)}
                                 </td>
                                 <td className="p-4 text-right">
                                   <div className="flex items-center justify-end gap-2">
@@ -5693,10 +5738,10 @@ export default function App() {
                                       </span>
                                     </td>
                                     <td className="p-4 text-slate-400 text-xs font-mono">
-                                      {new Date(ban.banned_at).toLocaleString()}
+                                      {formatDateTime(ban.banned_at)}
                                     </td>
                                     <td className="p-4 text-slate-400 text-xs font-mono">
-                                      {new Date(ban.expires_at).toLocaleString()}
+                                      {formatDateTime(ban.expires_at)}
                                     </td>
                                     <td className="p-4 text-right">
                                       <button
@@ -5755,7 +5800,7 @@ export default function App() {
                                 </div>
                                 {exc.expires_at && (
                                   <div className="text-[10px] text-slate-500 font-mono">
-                                    <strong>Expires:</strong> {new Date(exc.expires_at).toLocaleString()}
+                                    <strong>Expires:</strong> {formatDateTime(exc.expires_at)}
                                   </div>
                                 )}
                               </div>
@@ -8104,7 +8149,7 @@ function DomainDetailPage({
             {provisionLogs.length > 0 ? (
               provisionLogs.map(l => (
                 <div key={l.id} className="flex gap-4 hover:bg-white/2 py-1 rounded px-2">
-                  <span className="text-slate-500 shrink-0">{new Date(l.created_at).toLocaleTimeString()}</span>
+                  <span className="text-slate-500 shrink-0">{formatTimeOnly(l.created_at)}</span>
                   <span className={`font-bold shrink-0 w-16 ${l.status === 'SUCCESS' ? 'text-brand-mint' : 'text-red-400'}`}>[{l.step}]</span>
                   <span className="text-slate-300">{l.details}</span>
                 </div>
