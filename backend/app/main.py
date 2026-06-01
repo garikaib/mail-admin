@@ -1,5 +1,28 @@
 import os
 import logging
+import re
+import datetime
+from fastapi import encoders
+
+original_jsonable_encoder = encoders.jsonable_encoder
+ISO_NAIVE_DATETIME_RE = re.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$')
+
+def append_utc_timezone_to_naive_iso_strings(item):
+    if isinstance(item, str):
+        if ISO_NAIVE_DATETIME_RE.match(item):
+            return item + "Z"
+        return item
+    elif isinstance(item, dict):
+        return {k: append_utc_timezone_to_naive_iso_strings(v) for k, v in item.items()}
+    elif isinstance(item, list):
+        return [append_utc_timezone_to_naive_iso_strings(i) for i in item]
+    return item
+
+def custom_jsonable_encoder(obj, *args, **kwargs):
+    res = original_jsonable_encoder(obj, *args, **kwargs)
+    return append_utc_timezone_to_naive_iso_strings(res)
+
+encoders.jsonable_encoder = custom_jsonable_encoder
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
