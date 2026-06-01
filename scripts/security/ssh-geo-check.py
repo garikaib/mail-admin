@@ -2,37 +2,60 @@
 import os
 import sys
 import json
+import hashlib
 import urllib.request
 import urllib.error
 
 import time
 
+MESSAGE_SUPPRESSION_SECONDS = 30
+
+def already_printed_message():
+    """
+    PAM can run this hook more than once for one SSH login. Suppress repeated
+    allow messages for the same user/source/session for a short window.
+    """
+    key_parts = [
+        os.environ.get("PAM_USER", ""),
+        os.environ.get("PAM_RHOST", ""),
+        os.environ.get("PAM_SERVICE", ""),
+        os.environ.get("PAM_TTY", ""),
+        os.environ.get("SSH_CONNECTION", ""),
+    ]
+    marker_key = hashlib.sha256("\0".join(key_parts).encode("utf-8")).hexdigest()[:24]
+    state_file = f"/tmp/.ssh_geo_message_{marker_key}.tmp"
+    now = time.time()
+
+    try:
+        stat = os.stat(state_file)
+        if now - stat.st_mtime < MESSAGE_SUPPRESSION_SECONDS:
+            return True
+        os.unlink(state_file)
+    except FileNotFoundError:
+        pass
+    except Exception:
+        return False
+
+    try:
+        fd = os.open(state_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w") as f:
+            f.write(str(now))
+        return False
+    except FileExistsError:
+        return True
+    except Exception:
+        return False
+
 # Fail-Open helper
 def allow_login(reason=""):
-    if reason:
-        # Prevent duplicate outputs on multiple PAM invocations for the same SSH process connection
-        ppid = os.getppid()
-        state_file = f"/tmp/.ssh_geo_ppid_{ppid}.tmp"
-        
-        suppressed = False
-        try:
-            if os.path.exists(state_file):
-                suppressed = True
-            else:
-                with open(state_file, "w") as f:
-                    f.write("1")
-        except Exception:
-            pass
-
-        if not suppressed:
-            # Clean up the reason to look cleaner in console
-            clean_reason = reason.replace("GeoIP Resolution Failure Bypass (Fail-Open)", "Bypassed (Fail-Open)")
-            print(f"GeoIP: {clean_reason}", file=sys.stderr)
+    if reason and not already_printed_message():
+        clean_reason = reason.replace("GeoIP Resolution Failure Bypass (Fail-Open)", "Bypassed (Fail-Open)")
+        print(f"GeoIP: {clean_reason}", file=sys.stderr)
     sys.exit(0)
 
 def deny_login(reason=""):
     if reason:
-        print(f"GeoIP Blocked: {reason}", file=sys.stderr)
+        print(reason, file=sys.stderr)
     sys.exit(1)
 
 def main():

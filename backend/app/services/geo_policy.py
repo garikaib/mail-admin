@@ -174,9 +174,10 @@ def check_login_policy(db: Session, username: str, remote_ip: str, service: str)
                 if country_code in allowed_countries:
                     return True, f"Access granted by user override exception ({exc.service}) for country {country_code}"
             
-            reason = f"Access denied: User exceptions ({', '.join(exc.service for exc in active_exceptions)}) exist but do not allow country {country_code}"
+            detailed_reason = f"User exceptions ({', '.join(exc.service for exc in active_exceptions)}) exist but do not allow country {country_code}"
+            logger.warning(f"GeoIP Auth Failed: {username} from {remote_ip} ({country_code}). Reason: {detailed_reason}")
             trigger_ban(db, remote_ip, service)
-            return False, reason
+            return False, "Access denied: Trying to login from an unauthorised location"
 
     # 3. Resolve Domain Policy
     domain_name = ""
@@ -184,7 +185,7 @@ def check_login_policy(db: Session, username: str, remote_ip: str, service: str)
         _, domain_name = username.split("@", 1)
 
     allowed = False
-    reason = ""
+    detailed_reason = ""
 
     if domain_name:
         domain = db.query(MailDomain).filter(MailDomain.name == domain_name).first()
@@ -207,16 +208,16 @@ def check_login_policy(db: Session, username: str, remote_ip: str, service: str)
                     allowed = True
                     reason = f"Access granted by domain policy list (Country: {country_code})"
                 else:
-                    reason = f"Access denied: Country {country_code} is not allowed by domain policy"
+                    detailed_reason = f"Country {country_code} is not allowed by domain policy"
             else:
                 # Default: No policy configured -> Only SADC allowed
                 if country_code in sadc_countries:
                     allowed = True
                     reason = f"Access granted by default fallback policy (SADC country {country_code})"
                 else:
-                    reason = f"Access denied: Country {country_code} is not in default SADC group"
+                    detailed_reason = f"Country {country_code} is not in default SADC group"
         else:
-            reason = f"Access denied: Domain '{domain_name}' is not registered on this system"
+            detailed_reason = f"Domain '{domain_name}' is not registered on this system"
     else:
         # Usernames without domains (e.g. system administrators, SSH root logins)
         if service == "ssh":
@@ -238,24 +239,26 @@ def check_login_policy(db: Session, username: str, remote_ip: str, service: str)
                     allowed = True
                     reason = f"Access granted by SSH policy list (Country: {country_code})"
                 else:
-                    reason = f"Access denied: Country {country_code} is not allowed by SSH policy"
+                    detailed_reason = f"Country {country_code} is not allowed by SSH policy"
             else:
                 # Fallback to default SADC
                 if country_code in sadc_countries:
                     allowed = True
                     reason = f"Access granted by default admin fallback policy (SADC country {country_code})"
                 else:
-                    reason = f"Access denied: Administrative login from country {country_code} not in SADC fallback list"
+                    detailed_reason = f"Administrative login from country {country_code} not in SADC fallback list"
         else:
             # Check default SADC fallback
             if country_code in sadc_countries:
                 allowed = True
                 reason = f"Access granted by default admin fallback policy (SADC country {country_code})"
             else:
-                reason = f"Access denied: Administrative login from country {country_code} not in SADC fallback list"
+                detailed_reason = f"Administrative login from country {country_code} not in SADC fallback list"
 
     if not allowed:
+        logger.warning(f"GeoIP Auth Failed: {username} from {remote_ip} ({country_code}). Reason: {detailed_reason}")
         trigger_ban(db, remote_ip, service)
+        return False, "Access denied: Trying to login from an unauthorised location"
 
     return allowed, reason
 

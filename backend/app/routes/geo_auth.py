@@ -76,13 +76,13 @@ async def verify_dovecot_login(payload: DovecotVerifyRequest, db: Session = Depe
 
     if not username or not remote_ip:
         # If parameters are completely missing, don't fail closed to avoid bricking Dovecot
-        return {"status": "ok", "reason": "Missing verification parameters"}
+        return {"status": 0, "msg": "Missing verification parameters"}
 
     allowed, reason = check_login_policy(db, username, remote_ip, service="mail")
     if allowed:
-        return {"status": "ok", "reason": reason}
+        return {"status": 0, "msg": reason}
     else:
-        return {"status": "fail", "reason": reason}
+        return {"status": -1, "msg": reason}
 
 @router.post("/verify-ssh")
 async def verify_ssh_login(payload: SSHVerifyRequest, db: Session = Depends(get_db)):
