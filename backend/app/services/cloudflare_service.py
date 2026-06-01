@@ -45,7 +45,8 @@ def resolve_ns_ip(hostname: str) -> str:
                 ['dig', '+short', hostname],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
+                shell=False
             )
             ip = proc.stdout.strip().split('\n')[0] # Take first result
             if ip:

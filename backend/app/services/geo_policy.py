@@ -121,7 +121,7 @@ def add_ip_to_nftables(ip_str: str, service: str, timeout_seconds: int = 1800) -
         family = "ip6"
         set_name = "geo_mail_bans_v6" if service == "mail" else "geo_ssh_bans_v6"
 
-    cmd = ["nft", "add", "element", family, "filter", set_name, f"{{ {ip_str} timeout {timeout_seconds}s }}"]
+    cmd = ["/usr/sbin/nft", "add", "element", family, "filter", set_name, f"{{ {ip_str} timeout {timeout_seconds}s }}"]
     return run_nft_command(cmd)
 
 def remove_ip_from_nftables(ip_str: str, service: str) -> bool:
@@ -140,7 +140,7 @@ def remove_ip_from_nftables(ip_str: str, service: str) -> bool:
         family = "ip6"
         set_name = "geo_mail_bans_v6" if service == "mail" else "geo_ssh_bans_v6"
 
-    cmd = ["nft", "delete", "element", family, "filter", set_name, f"{{ {ip_str} }}"]
+    cmd = ["/usr/sbin/nft", "delete", "element", family, "filter", set_name, f"{{ {ip_str} }}"]
     return run_nft_command(cmd)
 
 def check_login_policy(db: Session, username: str, remote_ip: str, service: str) -> tuple[bool, str]:

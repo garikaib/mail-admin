@@ -67,6 +67,18 @@ MODULE_PERMISSIONS = {
         "delete": "registrations:delete",
         "submit": "registrations:submit",
     },
+    "geo_mail": {
+        "view": "geo_mail:view",
+        "manage_countries": "geo_mail:manage_countries",
+        "override_user_policy": "geo_mail:override_user_policy",
+        "clear_bans": "geo_mail:clear_bans",
+    },
+    "geo_ssh": {
+        "view": "geo_ssh:view",
+        "manage_countries": "geo_ssh:manage_countries",
+        "override_user_policy": "geo_ssh:override_user_policy",
+        "clear_bans": "geo_ssh:clear_bans",
+    },
 }
 
 CASBIN_MODEL = """
@@ -94,15 +106,18 @@ CASBIN_POLICIES = (
     ("domain_admin", "aliases", "read|create|update|delete"),
     ("domain_admin", "credentials", "read|create|scan_zones"),
     ("domain_admin", "registrations", "read|create|update|submit"),
+    ("domain_admin", "geo_mail", "view|manage_countries|override_user_policy|clear_bans"),
     ("support_admin", "domains", "read|provision_status"),
     ("support_admin", "mailboxes", "read|update|reset_password"),
     ("support_admin", "aliases", "read|update"),
     ("support_admin", "registrations", "read"),
     ("support_admin", "system", "service_logs|journal_query"),
+    ("support_admin", "geo_mail", "view|clear_bans"),
     ("readonly_admin", "domains", "read|provision_status"),
     ("readonly_admin", "mailboxes", "read"),
     ("readonly_admin", "aliases", "read"),
     ("readonly_admin", "registrations", "read"),
+    ("readonly_admin", "geo_mail", "view"),
 )
 
 

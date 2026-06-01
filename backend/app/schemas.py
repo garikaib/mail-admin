@@ -22,6 +22,13 @@ class LoginRequest(BaseModel):
 
 # ----------------- Mail Plan Schemas -----------------
 
+class MailPlanCreate(BaseModel):
+    name: str = Field(..., description="The name of the mail plan")
+    max_users: int = Field(..., description="Maximum allowed mailbox users")
+    max_aliases: int = Field(..., description="Maximum allowed aliases")
+    quota_mb: int = Field(..., description="Disk quota in MB")
+    is_default: bool = Field(False, description="Whether this is the default plan for new domains")
+
 class MailPlanResponse(BaseModel):
     id: int
     name: str
@@ -68,6 +75,10 @@ class DomainResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class DomainPlanUpdate(BaseModel):
+    plan_id: int = Field(..., description="The ID of the plan to assign")
+    is_active: bool = Field(..., description="Whether the domain is active")
 
 # ----------------- User (Mailbox) Schemas -----------------
 
@@ -316,4 +327,50 @@ class DomainRegistrationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ----------------- Geolocation Auth Schemas -----------------
+
+class GeoDomainPolicyUpdate(BaseModel):
+    allowed_countries: str = Field("", description="Comma-separated ISO country codes")
+    allowed_regions: str = Field("SADC", description="Comma-separated regions (e.g., SADC)")
+
+class GeoDomainPolicyResponse(BaseModel):
+    id: int
+    domain_id: int
+    allowed_countries: str
+    allowed_regions: str
+
+    class Config:
+        from_attributes = True
+
+class GeoUserExceptionCreate(BaseModel):
+    username: str = Field(..., description="Full email address of the user")
+    allowed_countries: str = Field(..., description="Comma-separated ISO country codes")
+    expires_at: Optional[datetime] = Field(None, description="Expiration datetime for the exception")
+
+class GeoUserExceptionResponse(BaseModel):
+    id: int
+    username: str
+    allowed_countries: str
+    expires_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+class GeoActiveBanResponse(BaseModel):
+    id: int
+    ip_address: str
+    service: str
+    banned_at: datetime
+    expires_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class GeoVerifyRequest(BaseModel):
+    username: str = Field(..., description="Username/Email being checked")
+    ip_address: str = Field(..., description="Remote IP address of the client")
+    service: str = Field(..., description="Service being accessed: imap, smtp, ssh")
+
 

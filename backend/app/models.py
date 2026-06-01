@@ -367,3 +367,62 @@ class UserCredentialAssignment(Base):
     __table_args__ = (
         UniqueConstraint('user_id', 'credential_id', name='core_usercredentialassignment_user_id_credential_id_key'),
     )
+
+
+# ----------------- Geolocation Auth Models -----------------
+
+class GeoDomainPolicy(Base):
+    __tablename__ = 'core_geodomainpolicy'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    domain_id = Column(Integer, ForeignKey('domains.id'), nullable=False, unique=True)
+    allowed_countries = Column(Text, default="")  # Comma-separated ISO codes
+    allowed_regions = Column(Text, default="SADC")  # Comma-separated regions (e.g. SADC)
+    augment_default = Column(Boolean, default=True, nullable=False)
+
+    domain = relationship("MailDomain")
+
+
+class GeoUserException(Base):
+    __tablename__ = 'core_geouserexception'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(255), nullable=False, index=True)  # email address or system user
+    service = Column(String(20), default="all", nullable=False)  # 'all', 'mail', or 'ssh'
+    allowed_countries = Column(Text, default="")  # Comma-separated ISO codes
+    expires_at = Column(DateTime, nullable=True)  # Travel window expiry TTL
+
+    __table_args__ = (
+        UniqueConstraint('username', 'service', name='uq_geouserexception_user_service'),
+    )
+
+
+class GeoActiveBan(Base):
+    __tablename__ = 'core_geoactiveban'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ip_address = Column(String(45), nullable=False, index=True)  # IPv4/IPv6
+    service = Column(String(20), nullable=False)  # 'mail' or 'ssh'
+    banned_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    ban_count = Column(Integer, default=1, nullable=False)
+
+
+
+class GeoSshPolicy(Base):
+    __tablename__ = 'core_geosshpolicy'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    allowed_countries = Column(Text, default="")  # Comma-separated ISO codes
+    allowed_regions = Column(Text, default="SADC")  # Comma-separated regions (e.g. SADC)
+    augment_default = Column(Boolean, default=True, nullable=False)
+
+
+class GeoRegion(Base):
+    __tablename__ = 'core_georegion'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), unique=True, nullable=False)  # Region code/name e.g. SADC, EUROPE
+    countries = Column(Text, default="")  # Comma-separated ISO codes
+
+

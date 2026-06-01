@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from backend.app.core.database import engine, Base
-from backend.app.routes import auth, domains, users, aliases, system, console_users, registrations
+from backend.app.routes import auth, domains, users, aliases, system, console_users, registrations, geo_auth
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -15,6 +15,119 @@ try:
     logger.info("Database tables verified/created successfully.")
 except Exception as e:
     logger.error(f"Error initializing database tables: {e}")
+
+def run_migrations():
+    from sqlalchemy import text
+    from backend.app.core.database import SessionLocal, use_sqlite
+    db = SessionLocal()
+    try:
+        # 1. Migrate core_geouserexception for service column
+        if use_sqlite:
+            res = db.execute(text("PRAGMA table_info(core_geouserexception);")).all()
+            cols = [r[1] for r in res]
+            if "service" not in cols:
+                logger.info("Running SQLite schema migration for core_geouserexception...")
+                db.execute(text("ALTER TABLE core_geouserexception ADD COLUMN service VARCHAR(20) NOT NULL DEFAULT 'all';"))
+                db.execute(text("DROP INDEX IF EXISTS ix_core_geouserexception_username;"))
+                db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_geouserexception_user_service ON core_geouserexception(username, service);"))
+                db.commit()
+                logger.info("SQLite schema migration completed successfully.")
+        else:
+            try:
+                db.execute(text("ALTER TABLE core_geouserexception ADD COLUMN service VARCHAR(20) NOT NULL DEFAULT 'all';"))
+                db.commit()
+                logger.info("Added service column to core_geouserexception.")
+            except Exception:
+                db.rollback()
+            
+            for index_name in ["username", "ix_core_geouserexception_username"]:
+                try:
+                    db.execute(text(f"ALTER TABLE core_geouserexception DROP INDEX {index_name};"))
+                    db.commit()
+                    logger.info(f"Dropped index {index_name} from core_geouserexception.")
+                except Exception:
+                    db.rollback()
+            try:
+                db.execute(text("ALTER TABLE core_geouserexception ADD UNIQUE KEY uq_geouserexception_user_service (username, service);"))
+                db.commit()
+                logger.info("Added unique index uq_geouserexception_user_service.")
+            except Exception:
+                db.rollback()
+
+        # 2. Migrate policies for augment_default column
+        if use_sqlite:
+            # Check GeoDomainPolicy
+            res = db.execute(text("PRAGMA table_info(core_geodomainpolicy);")).all()
+            cols = [r[1] for r in res]
+            if "augment_default" not in cols:
+                logger.info("Adding augment_default to SQLite core_geodomainpolicy...")
+                db.execute(text("ALTER TABLE core_geodomainpolicy ADD COLUMN augment_default BOOLEAN NOT NULL DEFAULT 1;"))
+                db.commit()
+            
+            # Check GeoSshPolicy
+            res = db.execute(text("PRAGMA table_info(core_geosshpolicy);")).all()
+            cols = [r[1] for r in res]
+            if "augment_default" not in cols:
+                logger.info("Adding augment_default to SQLite core_geosshpolicy...")
+                db.execute(text("ALTER TABLE core_geosshpolicy ADD COLUMN augment_default BOOLEAN NOT NULL DEFAULT 1;"))
+                db.commit()
+        else:
+            try:
+                db.execute(text("ALTER TABLE core_geodomainpolicy ADD COLUMN augment_default BOOLEAN NOT NULL DEFAULT 1;"))
+                db.commit()
+                logger.info("Added augment_default to MySQL core_geodomainpolicy.")
+            except Exception:
+                db.rollback()
+            try:
+                db.execute(text("ALTER TABLE core_geosshpolicy ADD COLUMN augment_default BOOLEAN NOT NULL DEFAULT 1;"))
+                db.commit()
+                logger.info("Added augment_default to MySQL core_geosshpolicy.")
+            except Exception:
+                db.rollback()
+
+        # 3. Seed default regions if core_georegion is empty
+        from backend.app.models import GeoRegion
+        count = db.query(GeoRegion).count()
+        if count == 0:
+            logger.info("Pre-seeding default geo-auth regions...")
+            default_regions = {
+                "SADC": "AO,BW,KM,CD,SZ,LS,MG,MW,MU,MZ,NA,SC,ZA,TZ,ZM,ZW",
+                "EUROPE": "AL,AD,AT,BY,BE,BA,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GR,HU,IS,IE,IT,LV,LI,LT,LU,MT,MD,MC,ME,NL,MK,NO,PL,PT,RO,RU,SM,RS,SK,SI,ES,SE,CH,UA,GB,VA",
+                "NORTH AMERICA": "US,CA,MX",
+                "MIDDLE EAST": "AE,SA,QA,BH,OM,YE,IL,JO,LB,SY,IQ,IR,TR",
+                "WESTERN EUROPE": "BE,FR,DE,LU,NL,CH,GB,IE,AT,LI",
+                "NORTH AFRICA": "EG,LY,TN,DZ,MA,EH,SD",
+                "SOUTHERN AFRICA": "ZA,LS,SZ,NA,BW,MZ,ZW,ZM,AO,MW",
+                "ASIA": "CN,JP,KR,IN,PK,BD,LK,NP,MM,TH,VN,MY,SG,ID,PH"
+            }
+            for name, countries in default_regions.items():
+                db.add(GeoRegion(name=name, countries=countries))
+            db.commit()
+            logger.info("Pre-seeding of geo-auth regions complete.")
+
+        # 4. Migrate core_geoactiveban for ban_count column
+        if use_sqlite:
+            res = db.execute(text("PRAGMA table_info(core_geoactiveban);")).all()
+            cols = [r[1] for r in res]
+            if "ban_count" not in cols:
+                logger.info("Adding ban_count to SQLite core_geoactiveban...")
+                db.execute(text("ALTER TABLE core_geoactiveban ADD COLUMN ban_count INTEGER NOT NULL DEFAULT 1;"))
+                db.commit()
+        else:
+            try:
+                db.execute(text("ALTER TABLE core_geoactiveban ADD COLUMN ban_count INT NOT NULL DEFAULT 1;"))
+                db.commit()
+                logger.info("Added ban_count to MySQL core_geoactiveban.")
+            except Exception:
+                db.rollback()
+
+    except Exception as e:
+        logger.error(f"Migration error: {e}")
+    finally:
+        db.close()
+
+
+run_migrations()
 
 app = FastAPI(
     title="ZimPrices Mail Admin API",
@@ -54,6 +167,7 @@ app.include_router(aliases.router, prefix="/api")
 app.include_router(system.router, prefix="/api")
 app.include_router(console_users.router, prefix="/api")
 app.include_router(registrations.router, prefix="/api")
+app.include_router(geo_auth.router, prefix="/api")
 
 @app.get("/api/health")
 def api_health():

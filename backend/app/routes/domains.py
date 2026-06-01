@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.app.core.database import get_db
 from backend.app.core.dependencies import get_current_user
+from backend.app.core.sudo import run_sudo
 from backend.app.core.permissions import (
     assigned_domain_names,
     is_super_admin,
@@ -21,7 +22,7 @@ from backend.app.models import (
     DomainProvisioningLog, DomainZoneToken,
     UserCredentialAssignment, CredentialDomainAssignment, AdminLog
 )
-from backend.app.schemas import DomainResponse, DomainProvisionRequest, CloudflareCredentialCreate, CloudflareCredentialUpdate, MailPlanResponse, ProvisioningLogResponse, ZoneOwnershipResponse, CloudflareZoneResponse, DNSRecordInput
+from backend.app.schemas import DomainResponse, DomainProvisionRequest, CloudflareCredentialCreate, CloudflareCredentialUpdate, MailPlanResponse, ProvisioningLogResponse, ZoneOwnershipResponse, CloudflareZoneResponse, DNSRecordInput, MailPlanCreate, DomainPlanUpdate
 from backend.app.services.provisioner import DomainProvisioner
 from backend.app.services.cloudflare import CloudflareService
 
@@ -123,11 +124,7 @@ def get_plans(
 
 @router.post("/plans", response_model=MailPlanResponse)
 def create_plan(
-    name: str,
-    max_users: int,
-    max_aliases: int,
-    quota_mb: int,
-    is_default: bool = False,
+    payload: MailPlanCreate,
     db: Session = Depends(get_db),
     current_user: AuthUser = Depends(get_current_user)
 ):
@@ -135,31 +132,27 @@ def create_plan(
     Create a new mail plan (Superusers only).
     """
     require_permission(current_user, db, "plans:create")
-    existing = db.query(MailPlan).filter(MailPlan.name == name).first()
+    existing = db.query(MailPlan).filter(MailPlan.name == payload.name).first()
     if existing:
-        raise HTTPException(status_code=400, detail=f"Plan '{name}' already exists.")
+        raise HTTPException(status_code=400, detail=f"Plan '{payload.name}' already exists.")
         
     plan = MailPlan(
-        name=name,
-        max_users=max_users,
-        max_aliases=max_aliases,
-        quota_mb=quota_mb,
-        is_default=is_default
+        name=payload.name,
+        max_users=payload.max_users,
+        max_aliases=payload.max_aliases,
+        quota_mb=payload.quota_mb,
+        is_default=payload.is_default
     )
     db.add(plan)
     db.commit()
     db.refresh(plan)
-    audit_log(db, current_user.username, "CREATE_PLAN", name, f"Users: {max_users}, Aliases: {max_aliases}, Quota: {quota_mb}MB")
+    audit_log(db, current_user.username, "CREATE_PLAN", payload.name, f"Users: {payload.max_users}, Aliases: {payload.max_aliases}, Quota: {payload.quota_mb}MB")
     return plan
 
 @router.put("/plans/{plan_id}", response_model=MailPlanResponse)
 def update_plan(
     plan_id: int,
-    name: str,
-    max_users: int,
-    max_aliases: int,
-    quota_mb: int,
-    is_default: bool = False,
+    payload: MailPlanCreate,
     db: Session = Depends(get_db),
     current_user: AuthUser = Depends(get_current_user)
 ):
@@ -173,19 +166,19 @@ def update_plan(
         raise HTTPException(status_code=404, detail="Plan not found")
         
     # Check if name is taken by another plan
-    existing = db.query(MailPlan).filter(MailPlan.name == name, MailPlan.id != plan_id).first()
+    existing = db.query(MailPlan).filter(MailPlan.name == payload.name, MailPlan.id != plan_id).first()
     if existing:
-        raise HTTPException(status_code=400, detail=f"Plan '{name}' already exists.")
+        raise HTTPException(status_code=400, detail=f"Plan '{payload.name}' already exists.")
         
-    plan.name = name
-    plan.max_users = max_users
-    plan.max_aliases = max_aliases
-    plan.quota_mb = quota_mb
-    plan.is_default = is_default
+    plan.name = payload.name
+    plan.max_users = payload.max_users
+    plan.max_aliases = payload.max_aliases
+    plan.quota_mb = payload.quota_mb
+    plan.is_default = payload.is_default
     
     db.commit()
     db.refresh(plan)
-    audit_log(db, current_user.username, "UPDATE_PLAN", name, f"Users: {max_users}, Aliases: {max_aliases}, Quota: {quota_mb}MB")
+    audit_log(db, current_user.username, "UPDATE_PLAN", payload.name, f"Users: {payload.max_users}, Aliases: {payload.max_aliases}, Quota: {payload.quota_mb}MB")
     return plan
 
 @router.delete("/plans/{plan_id}")
@@ -716,8 +709,7 @@ def get_provision_status(
 @router.put("/{domain_id}")
 def update_domain_plan(
     domain_id: int,
-    plan_id: int,
-    is_active: bool,
+    payload: DomainPlanUpdate,
     db: Session = Depends(get_db),
     current_user: AuthUser = Depends(get_current_user)
 ):
@@ -729,7 +721,7 @@ def update_domain_plan(
     if not domain:
         raise HTTPException(status_code=404, detail="Domain not found")
         
-    plan = db.query(MailPlan).filter(MailPlan.id == plan_id).first()
+    plan = db.query(MailPlan).filter(MailPlan.id == payload.plan_id).first()
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found")
         
@@ -743,7 +735,7 @@ def update_domain_plan(
     # Update limits
     domain.max_users = plan.max_users
     domain.max_aliases = plan.max_aliases
-    domain.is_active = is_active
+    domain.is_active = payload.is_active
     db.commit()
     
     # Sync quotas of all users in domain
@@ -753,12 +745,11 @@ def update_domain_plan(
     
     # Reload dovecot
     try:
-        import subprocess
-        subprocess.run(["/usr/bin/sudo", "/usr/sbin/doveadm", "reload"], check=True, timeout=10)
+        run_sudo(["/usr/sbin/doveadm", "reload"], check=True, timeout=10)
     except Exception as e:
         logger.error(f"Quotas updated but Dovecot reload failed: {e}")
         
-    audit_log(db, current_user.username, "UPDATE_DOMAIN", domain.name, f"Plan: {plan.name}, Active: {is_active}")
+    audit_log(db, current_user.username, "UPDATE_DOMAIN", domain.name, f"Plan: {plan.name}, Active: {payload.is_active}")
     return {"message": "Domain updated successfully"}
 
 @router.delete("/{domain_id}")

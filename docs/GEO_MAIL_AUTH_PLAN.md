@@ -64,18 +64,26 @@ Store all policy and temporary/permanent states in a small database (e.g., SQLit
 
 ### 4. Enforcement Layer (Kernel Nftables with Service Isolation)
 
-To ensure that bans on one protocol do not block access to unrelated services (like web traffic on ports 80/443), we define distinct, service-specific sets:
+To ensure that bans on one protocol do not block access to unrelated services (like web traffic on ports 80/443), we define distinct, service-specific sets supporting both IPv4 and IPv6:
 
 - Define native `nftables` sets in `/etc/nftables.conf` with timeout support:
   ```text
   table inet filter {
       # Target sets
-      set geo_mail_bans {
+      set geo_mail_bans_v4 {
           type ipv4_addr
           flags timeout
       }
-      set geo_ssh_bans {
+      set geo_mail_bans_v6 {
+          type ipv6_addr
+          flags timeout
+      }
+      set geo_ssh_bans_v4 {
           type ipv4_addr
+          flags timeout
+      }
+      set geo_ssh_bans_v6 {
+          type ipv6_addr
           flags timeout
       }
 
@@ -84,21 +92,26 @@ To ensure that bans on one protocol do not block access to unrelated services (l
           
           # Target-specific drops:
           # Only drop mail ports for mail bans
-          ip saddr @geo_mail_bans tcp dport { 25, 465, 587, 993 } drop
+          ip saddr @geo_mail_bans_v4 tcp dport { 25, 465, 587, 993 } drop
+          ip6 saddr @geo_mail_bans_v6 tcp dport { 25, 465, 587, 993 } drop
           
           # Only drop SSH port for SSH bans
-          ip saddr @geo_ssh_bans tcp dport { 22 } drop
+          ip saddr @geo_ssh_bans_v4 tcp dport { 22 } drop
+          ip6 saddr @geo_ssh_bans_v6 tcp dport { 22 } drop
       }
   }
   ```
-- Adding bans: The Python service uses `libnftables` to programmatically add the IP to the correct set:
-  - For IMAP/SMTP: `nft add element inet filter geo_mail_bans { <IP> timeout 30m }`
-  - For SSH: `nft add element inet filter geo_ssh_bans { <IP> timeout 30m }`
+- Adding bans: The Python service uses `libnftables` to programmatically add the IP to the correct set based on its protocol:
+  - For IMAP/SMTP (IPv4): `nft add element inet filter geo_mail_bans_v4 { <IP> timeout 30m }`
+  - For IMAP/SMTP (IPv6): `nft add element inet filter geo_mail_bans_v6 { <IP> timeout 30m }`
+  - For SSH (IPv4): `nft add element inet filter geo_ssh_bans_v4 { <IP> timeout 30m }`
+  - For SSH (IPv6): `nft add element inet filter geo_ssh_bans_v6 { <IP> timeout 30m }`
 - Clearing bans: Admin can clear a ban by executing:
   ```text
-  nft delete element inet filter geo_mail_bans { <IP> }
+  nft delete element inet filter geo_mail_bans_v4 { <IP> }
+  nft delete element inet filter geo_mail_bans_v6 { <IP> }
   ```
-- Boot Reconciler: On startup, a script queries the SQLite database for non-expired `active_bans` and loads them into their respective sets based on the `service` column.
+- Boot Reconciler: On startup, a script queries the SQLite database for non-expired `active_bans` and loads them into their respective sets based on the `service` and IP version.
 
 ### 5. SSH Integration Details
 
@@ -108,6 +121,23 @@ To extend this plan to SSH:
 3. **Safety Guardrails:**
    - **Fail-Open:** Configure the PAM hook or script to fail-open if the policy database or service is unavailable. This prevents locking out the system administrator.
    - **Local Network/Key Bypass:** Completely bypass GeoIP check for connection attempts originating from local subnets or when authenticating with a pre-approved master public key.
+
+## Design Blindspots & Mitigations
+
+To ensure robust operations, the implementation must resolve the following edge-cases:
+
+1. **Webmail Access (e.g., Roundcube/SnappyMail):**
+   - *Blindspot:* If users log in via Webmail, Dovecot sees the login request coming from `127.0.0.1` (local loopback), bypassing client-based GeoIP controls.
+   - *Mitigation:* Webmail must be configured to pass the client's real IP to Dovecot (e.g., via Dovecot's `x-client-ip` proxy header), or we must run the check in the webmail login flow.
+2. **Carrier-Grade NAT (CGNAT) lockout:**
+   - *Blindspot:* When mobile clients share a single public IP, dynamic bans triggered by one misconfigured client could block all other users on the same ISP.
+   - *Mitigation:* Banning rules should have short-lived timeouts (e.g., 15–30 minutes) and distinct rate thresholds before banning to avoid lockouts.
+3. **Application / API Mailbox Access:**
+   - *Blindspot:* Transactional/sending scripts or servers (e.g., WordPress plugins, external CRMs) authenticating from foreign hosting providers will get blocked if domain rules only allow regional logins.
+   - *Mitigation:* Support marking specific mailboxes as "App/API accounts" to bypass GeoIP checks in favor of strict API keys or specific IP whitelisting.
+4. **Policy Service Availability:**
+   - *Blindspot:* If SQLite is locked or the Python policy service daemon crashes, authentication might hang or lock out users completely.
+   - *Mitigation:* Configure the Dovecot SASL hook and PAM script to fail-open upon connection timeouts, logging alerts immediately for system admins.
 
 ## Webadmin Module
 
