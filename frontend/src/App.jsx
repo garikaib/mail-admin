@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Server, Shield, Key, Globe, Mail, Link as LinkIcon, LogOut, 
   Search, Plus, Check, AlertTriangle, RefreshCw, Trash2, Edit2, 
@@ -29,8 +29,8 @@ const highlightConfig = (code) => {
 
   html = applyOnlyToText(html, /(#[^\n]*|\/\/[^\n]*)/g, '<span style="color:#94a3b8;font-style:italic;">$1</span>');
   html = applyOnlyToText(html, /("[^"]*"|'[^']*')/g, '<span style="color:#34d399;font-weight:600;">$1</span>');
-  html = applyOnlyToText(html, /(^|\n)(\s*)([a-zA-Z0-9_\-\/]+)(\s*)(=|\s)/g, '$1$2<span style="color:#f472b6;font-weight:700;">$3</span>$4$5');
-  html = applyOnlyToText(html, /([\{\}\[\]\(\)])/g, '<span style="color:#fbbf24;font-weight:700;">$1</span>');
+  html = applyOnlyToText(html, /(^|\n)(\s*)([a-zA-Z0-9_/-]+)(\s*)(=|\s)/g, '$1$2<span style="color:#f472b6;font-weight:700;">$3</span>$4$5');
+  html = applyOnlyToText(html, /([{}[\]()])/g, '<span style="color:#fbbf24;font-weight:700;">$1</span>');
   html = applyOnlyToText(html, /\b(\d+)\b/g, '<span style="color:#a78bfa;font-weight:700;">$1</span>');
 
   return html;
@@ -76,7 +76,7 @@ const getFlagEmoji = (countryCode) => {
     .map(char => 127397 + char.charCodeAt(0));
   try {
     return String.fromCodePoint(...codePoints);
-  } catch (e) {
+  } catch {
     return '🏳️';
   }
 };
@@ -346,7 +346,7 @@ export default function App() {
     const saved = localStorage.getItem('mail_admin_user');
     try {
       return saved ? JSON.parse(saved) : null;
-    } catch (e) {
+    } catch {
       return null;
     }
   });
@@ -386,7 +386,6 @@ export default function App() {
   const [bulkLoading, setBulkLoading] = useState(false);
 
   const [credentials, setCredentials] = useState([]);
-  const [zoneOwnership, setZoneOwnership] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [systemHealth, setSystemHealth] = useState(null);
   
@@ -450,9 +449,7 @@ export default function App() {
   const [geoSettings, setGeoSettings] = useState([]);
   const [geoExceptions, setGeoExceptions] = useState([]);
   const [geoBans, setGeoBans] = useState([]);
-  const [geoLoading, setGeoLoading] = useState(false);
   const [showAddGeoExceptionModal, setShowAddGeoExceptionModal] = useState(false);
-  const [sshSettings, setSshSettings] = useState(null);
   const [sshAllowedCountries, setSshAllowedCountries] = useState('');
   const [sshAllowedRegions, setSshAllowedRegions] = useState('SADC');
 
@@ -503,7 +500,6 @@ export default function App() {
   const [showAddConsoleUserModal, setShowAddConsoleUserModal] = useState(false);
   const [showEditConsoleUserModal, setShowEditConsoleUserModal] = useState(false);
   const [selectedConsoleUser, setSelectedConsoleUser] = useState(null);
-  const [consoleUsersLoading, setConsoleUsersLoading] = useState(false);
   const [consoleUserSearch, setConsoleUserSearch] = useState('');
   const [consoleUserRoleFilter, setConsoleUserRoleFilter] = useState('all');
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
@@ -522,7 +518,7 @@ export default function App() {
   const [newMailboxLocal, setNewMailboxLocal] = useState('');
   const [newMailboxPwd, setNewMailboxPwd] = useState('');
   const [newMailboxName, setNewMailboxName] = useState('');
-  const [newMailboxQuota, setNewMailboxQuota] = useState(1048576); // 1GB in KB
+  const newMailboxQuota = 1048576; // 1GB in KB
   
   const [newAliasSource, setNewAliasSource] = useState('');
   const [newAliasDest, setNewAliasDest] = useState('');
@@ -561,13 +557,23 @@ export default function App() {
     }
   }, [logsService]);
 
-  useEffect(() => {
-    if (selectedPlan) {
-      setPlanName(selectedPlan.name);
-      setPlanMaxUsers(selectedPlan.max_users);
-      setPlanMaxAliases(selectedPlan.max_aliases);
-      setPlanQuotaMb(selectedPlan.quota_mb);
-      setPlanIsDefault(selectedPlan.is_default);
+  const resetPlanForm = () => {
+    setSelectedPlan(null);
+    setPlanName('');
+    setPlanMaxUsers(10);
+    setPlanMaxAliases(20);
+    setPlanQuotaMb(1024);
+    setPlanIsDefault(false);
+  };
+
+  const handleEditPlan = (p) => {
+    setSelectedPlan(p);
+    if (p) {
+      setPlanName(p.name);
+      setPlanMaxUsers(p.max_users);
+      setPlanMaxAliases(p.max_aliases);
+      setPlanQuotaMb(p.quota_mb);
+      setPlanIsDefault(p.is_default);
     } else {
       setPlanName('');
       setPlanMaxUsers(10);
@@ -575,17 +581,43 @@ export default function App() {
       setPlanQuotaMb(1024);
       setPlanIsDefault(false);
     }
-  }, [selectedPlan]);
+    setShowEditPlanModal(true);
+  };
 
-  // Auto-populate edit fields when selectedConsoleUser changes
-  useEffect(() => {
-    if (selectedConsoleUser) {
-      setEditConsoleIsSuper(selectedConsoleUser.is_superuser);
-      setEditConsoleRoles(selectedConsoleUser.roles.map(r => r.role));
-      setEditConsoleDomains(selectedConsoleUser.assignments.map(a => a.domain_name));
+  const handleAddPlanClick = () => {
+    setSelectedPlan(null);
+    setPlanName('');
+    setPlanMaxUsers(10);
+    setPlanMaxAliases(20);
+    setPlanQuotaMb(1024);
+    setPlanIsDefault(false);
+    setShowAddPlanModal(true);
+  };
+
+  const handleEditConsoleUser = (u) => {
+    setSelectedConsoleUser(u);
+    if (u) {
+      setEditConsoleIsSuper(u.is_superuser);
+      setEditConsoleRoles(u.roles.map(r => r.role));
+      setEditConsoleDomains(u.assignments.map(a => a.domain_name));
+      setEditConsolePassword('');
+    } else {
+      setEditConsoleIsSuper(false);
+      setEditConsoleRoles([]);
+      setEditConsoleDomains([]);
       setEditConsolePassword('');
     }
-  }, [selectedConsoleUser]);
+    setShowEditConsoleUserModal(true);
+  };
+
+  const handleCloseEditConsoleUserModal = () => {
+    setShowEditConsoleUserModal(false);
+    setSelectedConsoleUser(null);
+    setEditConsoleIsSuper(false);
+    setEditConsoleRoles([]);
+    setEditConsoleDomains([]);
+    setEditConsolePassword('');
+  };
 
   // URL Path Routing Effect
   useEffect(() => {
@@ -603,9 +635,9 @@ export default function App() {
     if (user) {
       if (!currentPath || !validPaths.includes(currentPath)) {
         window.history.replaceState(null, '', '/domains');
-        setActiveTab('domains');
+        setTimeout(() => setActiveTab('domains'), 0);
       } else {
-        handlePopState();
+        setTimeout(handlePopState, 0);
       }
     }
 
@@ -637,7 +669,7 @@ export default function App() {
         }
       } else {
         if (selectedDomain) {
-          setSelectedDomain(null);
+          setTimeout(() => setSelectedDomain(null), 0);
         }
       }
     }
@@ -651,29 +683,34 @@ export default function App() {
           const foundCred = credentials.find(c => c.id === parseInt(credParam));
           if (foundCred) {
             if (!selectedCredential || selectedCredential.id !== foundCred.id) {
-              setSelectedCredential(foundCred);
+              setTimeout(() => setSelectedCredential(foundCred), 0);
             }
             
             if (zoneParam && cloudflareZones.length > 0) {
               const foundZone = cloudflareZones.find(z => z.zone_id === zoneParam && z.credential_id === foundCred.id);
               if (foundZone) {
                 if (!selectedZone || selectedZone.zone_id !== zoneParam) {
-                  setSelectedZone(foundZone);
-                  fetchDnsRecords(foundCred.id, zoneParam);
+                  setTimeout(() => {
+                    setSelectedZone(foundZone);
+                    fetchDnsRecords(foundCred.id, zoneParam);
+                  }, 0);
                 }
               }
             } else if (!zoneParam && selectedZone) {
-              setSelectedZone(null);
+              setTimeout(() => setSelectedZone(null), 0);
             }
           }
         }
       } else {
         if (selectedCredential || selectedZone) {
-          setSelectedCredential(null);
-          setSelectedZone(null);
+          setTimeout(() => {
+            setSelectedCredential(null);
+            setSelectedZone(null);
+          }, 0);
         }
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, domains, credentials, cloudflareZones, window.location.search, token]);
 
   
@@ -703,14 +740,15 @@ export default function App() {
         if (allowedRoutes.length > 0) {
           if (activeTab === 'unauthorized' || !currentRoute || !hasPermission(currentRoute.permission)) {
             window.history.replaceState(null, '', `/${allowedRoutes[0].path}`);
-            setActiveTab(allowedRoutes[0].path);
+            setTimeout(() => setActiveTab(allowedRoutes[0].path), 0);
           }
         } else {
           window.history.replaceState(null, '', '/unauthorized');
-          setActiveTab('unauthorized');
+          setTimeout(() => setActiveTab('unauthorized'), 0);
         }
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, activeTab]);
 
   // Auto-clear messages
@@ -757,7 +795,7 @@ export default function App() {
       fetchStatus();
       interval = setInterval(fetchStatus, 3000);
     }
-    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackedProvisioningDomain, token]);
 
   // Sync server control detailed data
@@ -769,6 +807,7 @@ export default function App() {
         fetchConfigFiles();
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, serverControlTab, token]);
 
   // Fetch config content when selected config ID changes
@@ -776,6 +815,7 @@ export default function App() {
     if (token && activeTab === 'health' && serverControlTab === 'configs' && selectedConfigId) {
       fetchConfigContent(selectedConfigId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConfigId, serverControlTab, activeTab, token]);
 
   // Fetch log lines when active log service selection changes
@@ -783,6 +823,7 @@ export default function App() {
     if (token && activeTab === 'health' && serverControlTab === 'services' && logsService) {
       fetchServiceLogs(logsService);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logsService, serverControlTab, activeTab, token]);
 
   // Handle auto-refresh interval for service logs
@@ -796,6 +837,7 @@ export default function App() {
     return () => {
       if (interval) clearInterval(interval);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, activeTab, serverControlTab, logsService, autoRefreshLogs, logsLimit, logsInterval, logsSince, logsPriority, logsQuery]);
 
   useEffect(() => {
@@ -889,8 +931,8 @@ export default function App() {
         setLoading(false);
       }
     };
-
     hydrateGoogleSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleGoogleLogin = () => {
@@ -1014,7 +1056,7 @@ export default function App() {
     }
   };
 
-  const fetchInitialData = (authToken, isSuper, userPermissions = []) => {
+  function fetchInitialData(authToken, isSuper, userPermissions = []) {
     fetchDomains(authToken);
     fetchPlans(authToken);
     fetchCredentials(authToken);
@@ -1039,9 +1081,8 @@ export default function App() {
     }
   };
 
-  const fetchGeoData = async (t = token) => {
+  async function fetchGeoData(t = token) {
     try {
-      setGeoLoading(true);
       const isSuper = user?.is_superuser;
       const permissions = user?.permissions || [];
       const hasMail = isSuper || permissions.includes('geo_mail:view');
@@ -1075,7 +1116,6 @@ export default function App() {
       setGeoExceptions(exceptions);
       setGeoBans(bans);
       setGeoRegions(regionsData || []);
-      setSshSettings(sshData);
       if (sshData) {
         setSshAllowedCountries(sshData.allowed_countries || '');
         setSshAllowedRegions(sshData.allowed_regions || 'SADC');
@@ -1086,10 +1126,8 @@ export default function App() {
       }
     } catch (err) {
       console.error(err);
-    } finally {
-      setGeoLoading(false);
     }
-  };
+  }
 
   const handleSaveGeoPolicy = async (e) => {
     e.preventDefault();
@@ -1259,7 +1297,7 @@ export default function App() {
     }
   };
 
-  const fetchDomains = async (t = token) => {
+  async function fetchDomains(t = token) {
     try {
       const res = await fetch(`${API_BASE}/domains`, {
         headers: { 'Authorization': `Bearer ${t}` }
@@ -1273,7 +1311,7 @@ export default function App() {
     }
   };
 
-  const fetchPlans = async (t = token) => {
+  async function fetchPlans(t = token) {
     try {
       const res = await fetch(`${API_BASE}/domains/plans`, {
         headers: { 'Authorization': `Bearer ${t}` }
@@ -1611,7 +1649,7 @@ export default function App() {
     }
   };
 
-  const fetchDnsRecords = async (credId, zoneId, t = token) => {
+  async function fetchDnsRecords(credId, zoneId, t = token) {
     setLoading(true);
     setErrorMsg('');
     try {
@@ -1807,7 +1845,7 @@ export default function App() {
     });
   };
 
-  const fetchDetailedServices = async (t = token) => {
+  async function fetchDetailedServices(t = token) {
     setServicesLoading(true);
     try {
       const res = await fetch(`${API_BASE}/system/services/status`, {
@@ -1855,7 +1893,7 @@ export default function App() {
     }
   };
 
-  const fetchServiceLogs = async (serviceName, limit = logsLimit) => {
+  async function fetchServiceLogs(serviceName, limit = logsLimit) {
     setServiceLogsLoading(true);
     try {
       const params = new URLSearchParams({ service: serviceName, limit: String(limit) });
@@ -1880,7 +1918,7 @@ export default function App() {
     }
   };
 
-  const fetchConfigFiles = async () => {
+  async function fetchConfigFiles() {
     try {
       const res = await fetch(`${API_BASE}/system/configs`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -1897,7 +1935,7 @@ export default function App() {
     }
   };
 
-  const fetchConfigContent = async (configId) => {
+  async function fetchConfigContent(configId) {
     if (!configId) return;
     setConfigLoading(true);
     setConfigValidation(null);
@@ -2022,7 +2060,6 @@ export default function App() {
   };
 
   const fetchConsoleUsers = async (t = token) => {
-    setConsoleUsersLoading(true);
     try {
       const res = await fetch(`${API_BASE}/console-users`, {
         headers: { 'Authorization': `Bearer ${t}` }
@@ -2033,8 +2070,6 @@ export default function App() {
       }
     } catch (err) {
       console.error("Failed to fetch console users:", err);
-    } finally {
-      setConsoleUsersLoading(false);
     }
   };
 
@@ -2076,7 +2111,7 @@ export default function App() {
       if (res.ok) {
         setSuccessMsg("Console user updated successfully.");
         fetchConsoleUsers();
-        setShowEditConsoleUserModal(false);
+        handleCloseEditConsoleUserModal();
         fetchAuditLogs();
         
         const updatedUser = await res.json();
@@ -2161,7 +2196,7 @@ export default function App() {
         setSuccessMsg("Plan updated successfully!");
         fetchPlans();
         setShowEditPlanModal(false);
-        setSelectedPlan(null);
+        resetPlanForm();
       } else {
         const errData = await res.json();
         setErrorMsg(errData.detail || "Failed to update plan.");
@@ -2193,7 +2228,7 @@ export default function App() {
     }
   };
 
-  const handleSelectDomain = async (dom) => {
+  async function handleSelectDomain(dom) {
     setSelectedDomain(dom);
     const params = new URLSearchParams(window.location.search);
     if (params.get('domain') !== dom.name) {
@@ -2353,7 +2388,7 @@ export default function App() {
     await action();
   };
 
-  const deleteDomainConfirmed = async (domainId, domainName) => {
+  async function deleteDomainConfirmed(domainId) {
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/domains/${domainId}`, {
@@ -2374,7 +2409,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const handleDeleteDomain = (domainId, domainName) => {
     showConfirm({
@@ -2402,23 +2437,8 @@ export default function App() {
       ),
       confirmLabel: 'Purge Everything',
       tone: 'danger',
-      onConfirm: () => deleteDomainConfirmed(domainId, domainName),
+      onConfirm: () => deleteDomainConfirmed(domainId),
     });
-  };
-
-  const handleUpdateDomainActive = async (dom, active) => {
-    try {
-      const res = await fetch(`${API_BASE}/domains/${dom.id}?plan_id=${dom.plan_id}&is_active=${active}`, {
-        method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        setSuccessMsg(`Domain ${dom.name} ${active ? 'activated' : 'suspended'}`);
-        fetchDomains();
-      }
-    } catch (err) {
-      console.error(err);
-    }
   };
 
   const handleAddMailbox = async (e) => {
@@ -2701,7 +2721,6 @@ export default function App() {
       if (!res.ok) {
         throw new Error(data.detail || 'Failed to scan Cloudflare zones');
       }
-      setZoneOwnership(data);
       fetchCloudflareZones();
       setSuccessMsg(`Scanned ${data.length} domain zones.`);
     } catch (err) {
@@ -3020,7 +3039,6 @@ export default function App() {
               plans={plans}
               hasPermission={hasPermission}
               onDeleteDomain={() => handleDeleteDomain(selectedDomain.id, selectedDomain.name)}
-              onUpdateActive={(active) => handleUpdateDomainActive(selectedDomain, active)}
               refresh={() => handleSelectDomain(selectedDomain)}
             />
           ) : (
@@ -4562,10 +4580,7 @@ export default function App() {
                                   <td className="p-4 text-right">
                                     <div className="flex items-center justify-end gap-2">
                                       <button 
-                                        onClick={() => {
-                                          setSelectedConsoleUser(u);
-                                          setShowEditConsoleUserModal(true);
-                                        }}
+                                        onClick={() => handleEditConsoleUser(u)}
                                         className="p-2 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
                                         title="Edit User Roles & Scopes"
                                       >
@@ -4618,7 +4633,7 @@ export default function App() {
                     </div>
                     {hasPermission('plans:create') && (
                       <button 
-                        onClick={() => { setSelectedPlan(null); setShowAddPlanModal(true); }}
+                        onClick={handleAddPlanClick}
                         className="px-5 py-2.5 bg-brand-mint text-slate-950 rounded-xl font-black border-2 border-slate-950 shadow-[4px_4px_0_#151214] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer text-sm"
                       >
                         <Plus className="w-4 h-4" />
@@ -4669,10 +4684,7 @@ export default function App() {
                                 <div className="flex items-center justify-end gap-2">
                                   {hasPermission('plans:update') && (
                                     <button 
-                                      onClick={() => {
-                                        setSelectedPlan(p);
-                                        setShowEditPlanModal(true);
-                                      }}
+                                      onClick={() => handleEditPlan(p)}
                                       className="p-2 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
                                       title="Edit Plan"
                                     >
@@ -5367,7 +5379,7 @@ export default function App() {
                       </p>
                     </div>
 
-                    <div className="flex space-x-2 bg-black/20 p-1 rounded-xl border border-white/5 overflow-x-auto max-w-full">
+                    <div className="flex shrink-0 space-x-2 bg-black/20 p-1 rounded-xl border border-white/5 overflow-x-auto max-w-full no-scrollbar">
                       <button
                         type="button"
                         onClick={() => setGeoSubTab('mail')}
@@ -5629,7 +5641,7 @@ export default function App() {
                             Refresh Logs
                           </button>
                         </div>
-                        <div className="bg-brand-plum-dark/80 rounded-xl p-4 border border-white/10 font-mono text-xs text-slate-300 overflow-x-auto max-h-96 overflow-y-auto">
+                        <div className="bg-brand-plum-dark/80 rounded-xl p-4 border border-white/10 font-mono text-xs text-slate-300 overflow-auto max-h-96 custom-scrollbar">
                           {sshLogs ? (
                             <pre className="whitespace-pre-wrap">{sshLogs}</pre>
                           ) : (
@@ -5649,10 +5661,10 @@ export default function App() {
                             Active Firewall Port Bans (Nftables)
                           </h3>
 
-                          <div className="overflow-x-auto border border-white/5 rounded-2xl">
+                          <div className="overflow-auto max-h-[420px] border border-white/5 rounded-2xl custom-scrollbar">
                             <table className="w-full border-collapse text-left">
                               <thead>
-                                <tr className="border-b border-white/5 bg-white/2">
+                                <tr className="border-b border-white/5 bg-[#fffaf0] sticky top-0 z-10">
                                   <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">IP Address</th>
                                   <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Service</th>
                                   <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Banned At</th>
@@ -6211,8 +6223,8 @@ export default function App() {
             <div className="space-y-4 pt-2">
               {STEP_ORDER.map((code, index) => {
                 const status = getStepStatus(code);
-                let indicator = null;
-                let textColor = 'text-slate-400';
+                let indicator;
+                let textColor;
                 
                 if (status === 'success') {
                   indicator = <div className="w-6 h-6 rounded-full bg-brand-mint/20 border border-brand-mint text-brand-mint flex items-center justify-center shrink-0"><Check className="w-3.5 h-3.5 stroke-[3px]" /></div>;
@@ -6492,7 +6504,7 @@ export default function App() {
               <div className="flex gap-3 pt-4">
                 <button 
                   type="button" 
-                  onClick={() => { setShowEditPlanModal(false); setSelectedPlan(null); }}
+                  onClick={() => { setShowEditPlanModal(false); resetPlanForm(); }}
                   className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl font-bold transition-all cursor-pointer text-center text-sm"
                 >
                   Cancel
@@ -6695,7 +6707,7 @@ export default function App() {
                 <p className="text-slate-400 text-xs mt-1">Update roles, scopes, or password for <strong>{selectedConsoleUser.username}</strong>.</p>
               </div>
               <button 
-                onClick={() => setShowEditConsoleUserModal(false)}
+                onClick={handleCloseEditConsoleUserModal}
                 className="p-1 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white"
               >
                 <X className="w-4 h-4" />
@@ -6840,7 +6852,7 @@ export default function App() {
               <div className="flex gap-4 pt-4">
                 <button 
                   type="button" 
-                  onClick={() => setShowEditConsoleUserModal(false)}
+                  onClick={handleCloseEditConsoleUserModal}
                   className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-xl text-sm transition-all"
                 >
                   Cancel
@@ -7635,7 +7647,7 @@ function PasswordResetModal({ email, password, onClose }) {
       await navigator.clipboard.writeText(password);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+    } catch {
       setCopied(false);
     }
   };
@@ -7828,7 +7840,7 @@ function LoginScreen({ onLogin, onGoogleLogin, loading, errorMsg }) {
 function DomainDetailPage({ 
   domain, mailboxes, aliases, provisionLogs, onBack, onAddUser, 
   onAddAlias, onResetPassword, onDeleteMailbox, onDeleteAlias, 
-  onEditAlias, plans, hasPermission, onDeleteDomain, onUpdateActive, refresh 
+  onEditAlias, plans, hasPermission, onDeleteDomain, refresh 
 }) {
   const [activeSubTab, setActiveSubTab] = useState('mailboxes');
 
