@@ -183,7 +183,7 @@ class CloudflareService:
             logger.exception(f"Cloudflare API Error (create_dns_record) for {zone_id}: {e}")
             return False
 
-    def get_default_mail_records(self, zone_id: str, domain: str) -> list:
+    def get_default_mail_records(self, zone_id: str, domain: str, webmail_cname_target: str = None) -> list:
         """
         Build the default list of proposed DNS records for the domain.
         """
@@ -229,6 +229,8 @@ class CloudflareService:
             else:
                 our_priority = max(1, min_priority - 2)
 
+        cname_target = webmail_cname_target or self.MAIL_SERVER_HOST
+
         records = [
             # 1. MX Record -> mail.zimprices.co.zw
             {
@@ -255,11 +257,11 @@ class CloudflareService:
                 "proxied": False,
                 "ttl": 3600
             },
-            # 4. Webmail CNAME -> mail.zimprices.co.zw (Proxied per honeyscoop pattern)
+            # 4. Webmail CNAME -> account-local duplicate to avoid Cloudflare 1014 cross-user CNAME blocks.
             {
                 "type": "CNAME",
                 "name": f"webmail.{domain}",
-                "content": self.MAIL_SERVER_HOST,
+                "content": cname_target,
                 "proxied": True, 
                 "ttl": 1
             },
@@ -282,13 +284,13 @@ class CloudflareService:
         ]
         return records
 
-    def configure_mail_dns(self, zone_id: str, domain: str) -> bool:
+    def configure_mail_dns(self, zone_id: str, domain: str, webmail_cname_target: str = None) -> bool:
         """
         Configure all required mail records for the domain.
         Returns True if all records were processed successfully.
         """
-        logger.info(f"Configuring standard mail DNS records for {domain} in zone {zone_id}")
-        records = self.get_default_mail_records(zone_id, domain)
+        logger.info(f"Configuring standard mail DNS records for {domain} in zone {zone_id} with target {webmail_cname_target}")
+        records = self.get_default_mail_records(zone_id, domain, webmail_cname_target=webmail_cname_target)
         success = True
         for rec in records:
             if not self.create_dns_record(zone_id, rec):

@@ -426,3 +426,84 @@ class GeoRegion(Base):
     countries = Column(Text, default="")  # Comma-separated ISO codes
 
 
+# ----------------- Cloudflare Account Grouping & Routing Models -----------------
+
+class CloudflareAccount(Base):
+    __tablename__ = 'cloudflare_accounts'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    cloudflare_account_id = Column(String(64), unique=True, nullable=False, index=True)
+    name = Column(String(255), nullable=True)
+    status = Column(String(50), default="active")  # active, disabled, etc.
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    managed_domains = relationship("ManagedDomain", back_populates="account")
+    primaries = relationship("CloudflareWebmailPrimary", back_populates="account")
+
+
+class CloudflareCredentialAccount(Base):
+    __tablename__ = 'cloudflare_credential_accounts'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    credential_id = Column(Integer, ForeignKey('core_encryptedcloudflarecredential.id'), nullable=False)
+    cloudflare_account_id = Column(String(64), ForeignKey('cloudflare_accounts.cloudflare_account_id'), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint('credential_id', 'cloudflare_account_id', name='uq_cloudflare_credential_account'),
+    )
+
+
+class ManagedDomain(Base):
+    __tablename__ = 'managed_domains'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    domain = Column(String(255), unique=True, nullable=False, index=True)
+    zone_id = Column(String(64), nullable=True)
+    cloudflare_account_id = Column(String(64), ForeignKey('cloudflare_accounts.cloudflare_account_id'), nullable=True)
+    credential_id_last_used = Column(Integer, ForeignKey('core_encryptedcloudflarecredential.id'), nullable=True)
+    source = Column(String(50), default="provisioned")  # provisioned | imported | registered | discovered
+    status = Column(String(50), default="active")  # discovered | managed | provisioning | active | repair_needed | deleting | retired
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    account = relationship("CloudflareAccount", back_populates="managed_domains")
+
+
+class CloudflareWebmailPrimary(Base):
+    __tablename__ = 'cloudflare_webmail_primaries'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    cloudflare_account_id = Column(String(64), ForeignKey('cloudflare_accounts.cloudflare_account_id'), nullable=False, unique=True)
+    primary_domain = Column(String(255), nullable=False)
+    primary_zone_id = Column(String(64), nullable=False)
+    primary_hostname = Column(String(255), nullable=False)
+    ipv4_record_id = Column(String(64), nullable=True)
+    ipv6_record_id = Column(String(64), nullable=True)
+    status = Column(String(50), default="active")  # active | retired | missing
+    auto_promote_enabled = Column(Boolean, default=True)
+    auto_repair_dns_enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    account = relationship("CloudflareAccount", back_populates="primaries")
+
+
+class DomainTlsAsset(Base):
+    __tablename__ = 'domain_tls_assets'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    domain = Column(String(255), unique=True, nullable=False, index=True)
+    cloudflare_account_id = Column(String(64), ForeignKey('cloudflare_accounts.cloudflare_account_id'), nullable=True)
+    origin_cert_id = Column(String(64), nullable=True)
+    cert_path = Column(String(512), nullable=True)
+    key_path = Column(String(512), nullable=True)
+    covers_wildcard = Column(Boolean, default=True)
+    expires_at = Column(DateTime, nullable=True)
+    status = Column(String(50), default="active")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+

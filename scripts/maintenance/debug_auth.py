@@ -3,17 +3,24 @@ import crypt
 import subprocess
 import pymysql
 import sys
+import os
 
-# DB Credentials (hardcoded based on previous setups)
-DB_HOST = "127.0.0.1"
-DB_USER = "mailuser"
-DB_PASS = "ChangeMe123!"
-DB_NAME = "mailserver"
+DB_HOST = os.getenv("MAIL_DB_HOST") or os.getenv("DB_HOST", "127.0.0.1")
+DB_USER = os.getenv("MAIL_DB_USER") or os.getenv("DB_USER", "mailuser")
+DB_PASS = os.getenv("MAIL_DB_PASS") or os.getenv("DB_PASS")
+DB_NAME = os.getenv("MAIL_DB_NAME") or os.getenv("DB_NAME", "mailserver")
 
-TEST_USER = "gbdzoma@zimprices.co.zw"
-TEST_PASS = "ChangeMe123!"
+TEST_USER = os.getenv("TEST_USER", "gbdzoma@zimprices.co.zw")
+TEST_PASS = os.getenv("TEST_PASS")
+
+def require_env():
+    if not DB_PASS:
+        raise RuntimeError("MAIL_DB_PASS or DB_PASS must be set")
+    if not TEST_PASS:
+        raise RuntimeError("TEST_PASS must be set")
 
 def get_db_hash():
+    require_env()
     conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASS, database=DB_NAME)
     try:
         with conn.cursor() as cursor:
@@ -25,6 +32,7 @@ def get_db_hash():
         conn.close()
 
 def update_db_hash(new_hash):
+    require_env()
     conn = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASS, database=DB_NAME)
     try:
         with conn.cursor() as cursor:

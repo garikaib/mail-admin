@@ -27,6 +27,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from backend.app.core.database import engine, Base
+from backend.app.models import (
+    CloudflareAccount,
+    CloudflareCredentialAccount,
+    ManagedDomain,
+    CloudflareWebmailPrimary,
+    DomainTlsAsset
+)
 from backend.app.routes import auth, domains, users, aliases, system, console_users, registrations, geo_auth
 
 logging.basicConfig(level=logging.INFO)

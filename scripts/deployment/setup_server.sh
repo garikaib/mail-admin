@@ -150,29 +150,16 @@ QUOTA_EOF
     echo "=========================================="
     echo "8. Configuring Sudoers for Platform Operations"
     echo "=========================================="
-    cat << 'SUDOERS' | sudo tee /etc/sudoers.d/mail-admin
-# Mail Admin Platform - Restricted Commands for mailadmin user
-mailadmin ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /var/vmail/*
-mailadmin ALL=(ALL) NOPASSWD: /usr/bin/chown -R vmail\:vmail /var/vmail/*
-mailadmin ALL=(ALL) NOPASSWD: /usr/bin/rm -rf /var/vmail/*
-mailadmin ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u mail-admin *
-mailadmin ALL=(ALL) NOPASSWD: /usr/bin/journalctl --since *
-mailadmin ALL=(ALL) NOPASSWD: /usr/bin/grep * /var/log/mail.log
-mailadmin ALL=(ALL) NOPASSWD: /usr/bin/tail -n * /var/log/mail.log
-mailadmin ALL=(ALL) NOPASSWD: /usr/bin/tail -n * /var/log/nginx/error.log
-mailadmin ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active *
-mailadmin ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop mail-admin
-mailadmin ALL=(ALL) NOPASSWD: /usr/bin/systemctl start mail-admin
-mailadmin ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart mail-admin
-mailadmin ALL=(ALL) NOPASSWD: /usr/sbin/doveadm reload
-mailadmin ALL=(ALL) NOPASSWD: /usr/bin/lego *
-mailadmin ALL=(ALL) NOPASSWD: /usr/sbin/service nginx reload
-mailadmin ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload nginx
-mailadmin ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/nginx/sites-available/*
-mailadmin ALL=(ALL) NOPASSWD: /usr/bin/ln -s /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*
-mailadmin ALL=(ALL) NOPASSWD: /opt/mail_admin/venv/bin/python3 /opt/mail_admin/scripts/core/mail_monitor.py
-SUDOERS
-    sudo chmod 0440 /etc/sudoers.d/mail-admin
+    if [ -f "/opt/mail_admin/backend/config/mailadmin_sudoers" ]; then
+        sudo visudo -cf /opt/mail_admin/backend/config/mailadmin_sudoers
+        sudo cp /opt/mail_admin/backend/config/mailadmin_sudoers /etc/sudoers.d/mailadmin
+        sudo chmod 0440 /etc/sudoers.d/mailadmin
+        sudo chown root:root /etc/sudoers.d/mailadmin
+        sudo visudo -cf /etc/sudoers.d/mailadmin
+        sudo rm -f /etc/sudoers.d/mail-admin
+    else
+        echo "⚠️  /opt/mail_admin/backend/config/mailadmin_sudoers not found. Run deploy.sh first, then re-run this script."
+    fi
 
     echo ""
     echo "=========================================="

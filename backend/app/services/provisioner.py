@@ -36,6 +36,9 @@ class DomainProvisioner:
         - cf_email + cf_key (Global Key auth)
         - cf_token (Zone Token auth)
         """
+        self.cf_email = cf_email
+        self.cf_key = cf_key
+        self.cf_token = cf_token
         if cf_token:
             self.cf = CloudflareService(api_token=cf_token)
         else:
@@ -76,19 +79,9 @@ class DomainProvisioner:
                 
         if "SSL" in steps_completed:
             try:
-                cert_files = [
-                    f"/etc/lego/certificates/{domain}.crt",
-                    f"/etc/lego/certificates/{domain}.key",
-                    f"/etc/lego/certificates/{domain}.issuer.crt",
-                    f"/etc/lego/certificates/{domain}.json",
-                    f"/etc/lego/certificates/_.{domain}.crt",
-                    f"/etc/lego/certificates/_.{domain}.key",
-                    f"/etc/lego/certificates/_.{domain}.issuer.crt",
-                    f"/etc/lego/certificates/_.{domain}.json"
-                ]
-                for cert_file in cert_files:
-                    run_sudo(["/usr/bin/rm", "-f", cert_file], capture_output=True)
-                self.log_step(db, domain, "ROLLBACK", "INFO", "Removed SSL certificates")
+                from backend.app.services.cloudflare_origin_ca import CloudflareOriginCAService
+                CloudflareOriginCAService().remove_certificate_files(domain)
+                self.log_step(db, domain, "ROLLBACK", "INFO", "Removed Origin CA certificates")
             except Exception as e:
                 logger.error(f"SSL Rollback failed: {e}")
                 
@@ -101,7 +94,8 @@ class DomainProvisioner:
         
         if "NGINX" in steps_completed:
             try:
-                self.nginx.remove_config(domain)
+                from backend.app.services.nginx_webmail_config import NginxWebmailConfigService
+                NginxWebmailConfigService().remove_config(domain)
                 self.log_step(db, domain, "ROLLBACK", "INFO", "Removed Nginx config")
             except Exception as e:
                 logger.error(f"Nginx Rollback failed: {e}")
@@ -237,17 +231,99 @@ class DomainProvisioner:
             logger.info(f"[{domain}] Re-initializing CloudflareService with restricted Zone Token.")
             self.cf = CloudflareService(api_token=zone_token_secret)
             
+            # DNS, SSL, Nginx Configuration using account-aware grouping
+            logger.info(f"[{domain}] Fetching zone and account information...")
+            zone_details = self.cf.get_zone(zone_id)
+            account_id = zone_details.get("account", {}).get("id") if zone_details else None
+            
+            if not account_id:
+                # Fallback to fetching first visible account if not found in zone details
+                account_id = self.cf.get_first_account_id()
+
+            # Ensure CloudflareAccount exists in DB
+            from backend.app.models import CloudflareAccount, ManagedDomain
+            if account_id:
+                cf_acc = db.query(CloudflareAccount).filter(CloudflareAccount.cloudflare_account_id == account_id).first()
+                if not cf_acc:
+                    cf_acc = CloudflareAccount(cloudflare_account_id=account_id, name=zone_details.get("account", {}).get("name") if zone_details else "Discovered Account")
+                    db.add(cf_acc)
+                    db.commit()
+
+            # Update ManagedDomain status to provisioning
+            md = db.query(ManagedDomain).filter(ManagedDomain.domain == domain).first()
+            if not md:
+                md = ManagedDomain(domain=domain, zone_id=zone_id, cloudflare_account_id=account_id, source="provisioned", status="provisioning")
+                db.add(md)
+            else:
+                md.status = "provisioning"
+                if zone_id:
+                    md.zone_id = zone_id
+                if account_id:
+                    md.cloudflare_account_id = account_id
+            db.commit()
+
+            # 3. SSL via Origin CA
+            logger.info(f"[{domain}] Step 3: Generating Wildcard Origin CA certificate...")
+            from backend.app.services.cloudflare_origin_ca import CloudflareOriginCAService
+            origin_ca = CloudflareOriginCAService(
+                email=self.cf_email or (self.cf.headers.get("X-Auth-Email")),
+                api_key=self.cf_key or (self.cf.headers.get("X-Auth-Key")),
+                api_token=self.cf_token or (self.cf.headers.get("Authorization", "").replace("Bearer ", "").strip() if "Authorization" in self.cf.headers else None)
+            )
+            if not origin_ca.deploy_origin_certificate(db, domain, cloudflare_account_id=account_id):
+                logger.error(f"[{domain}] SSL FAIL: deploy_origin_certificate returned False.")
+                self.log_step(db, domain, "SSL", "FAILED", "Origin CA certificate generation failed")
+                self.rollback(db, domain, zone_id, steps_completed)
+                return False
+            
+            steps_completed.append("SSL")
+            self.log_step(db, domain, "SSL", "SUCCESS", "Origin CA wildcard certificate generated and deployed")
+
+            # 4. Nginx config
+            logger.info(f"[{domain}] Step 4: Deploying Nginx configuration...")
+            from backend.app.services.nginx_webmail_config import NginxWebmailConfigService
+            nginx_service = NginxWebmailConfigService()
+            if not nginx_service.deploy_config(domain):
+                logger.error(f"[{domain}] NGINX FAIL: deploy_config returned False.")
+                self.log_step(db, domain, "NGINX", "FAILED", "Nginx config deploy failed")
+                self.rollback(db, domain, zone_id, steps_completed)
+                return False
+            
+            steps_completed.append("NGINX")
+            self.log_step(db, domain, "NGINX", "SUCCESS", "Webmail config active")
+
+            # 5. Primary Hostname allocation & DNS Configuration
+            from backend.app.services.cloudflare_grouping_service import CloudflareGroupingService
+            grouping_service = CloudflareGroupingService()
+            primary = grouping_service.resolve_or_allocate_primary(
+                db,
+                account_id,
+                fallback_domain=domain,
+                cf_override=CloudflareService(email=self.cf_email, api_key=self.cf_key) if self.cf_key else None
+            )
+            if not primary:
+                logger.error(f"[{domain}] DNS FAIL: Could not resolve or allocate webmail primary for account {account_id}")
+                self.log_step(db, domain, "DNS", "FAILED", "Could not allocate webmail primary")
+                self.rollback(db, domain, zone_id, steps_completed)
+                return False
+
+            webmail_cname_target = primary.primary_hostname
+            logger.info(f"[{domain}] Using webmail primary target: {webmail_cname_target}")
+
             # DNS Configuration
-            logger.info(f"[{domain}] Step 2: Configuring DNS records...")
+            logger.info(f"[{domain}] Step 5: Configuring DNS records...")
             dns_success = True
             if dns_records:
                 logger.info(f"[{domain}] Using user-confirmed DNS records...")
                 for rec in dns_records:
+                    if rec.get("type") == "CNAME" and rec.get("name", "").startswith("webmail"):
+                        # Dynamic replacement to enforce account-local primary
+                        rec["content"] = webmail_cname_target
                     if not self.cf.create_dns_record(zone_id, rec):
                         logger.error(f"[{domain}] Failed to create DNS record: {rec}")
                         dns_success = False
             else:
-                dns_success = self.cf.configure_mail_dns(zone_id, domain)
+                dns_success = self.cf.configure_mail_dns(zone_id, domain, webmail_cname_target=webmail_cname_target)
                 
             if not dns_success:
                 self.log_step(db, domain, "DNS", "FAILED", "Failed to create DNS records")
@@ -257,26 +333,10 @@ class DomainProvisioner:
             steps_completed.append("DNS")
             self.log_step(db, domain, "DNS", "SUCCESS", "DNS records configured")
             
-            # 3. SSL
-            logger.info(f"[{domain}] Step 3: Provisioning Wildcard SSL via Lego...")
-            if not self.ssl.provision_wildcard(domain, cf_token=zone_token_secret):
-                logger.error(f"[{domain}] SSL FAIL: provision_wildcard returned False.")
-                self.log_step(db, domain, "SSL", "FAILED", "Lego certificate generation failed")
-                self.rollback(db, domain, zone_id, steps_completed)
-                return False
-            
-            steps_completed.append("SSL")
-            self.log_step(db, domain, "SSL", "SUCCESS", "Certificates generated")
-
-            # 4. DKIM
-            logger.info(f"[{domain}] Step 4: Activating DKIM keys...")
-            # Key should already be generated in stage 1, but we call generate_dkim_key (which is idempotent)
+            # 6. DKIM
+            logger.info(f"[{domain}] Step 6: Activating DKIM keys...")
             selector, dkim_pub = self.dkim.generate_dkim_key(domain)
             if selector and dkim_pub:
-                logger.info(f"[{domain}] DKIM keys ready. Selector: {selector}.")
-                # Always upsert DKIM after final key activation. In DNS-review
-                # provisioning the review step may have published an earlier key;
-                # this keeps Cloudflare aligned with the private key Rspamd signs with.
                 if self.cf.add_dkim_record(zone_id, domain, selector, dkim_pub):
                     steps_completed.append("DKIM")
                     self.log_step(db, domain, "DKIM", "SUCCESS", "DKIM key generated and DNS updated")
@@ -284,17 +344,6 @@ class DomainProvisioner:
                     self.log_step(db, domain, "DKIM", "WARNING", "DKIM DNS update failed, but proceeding")
             else:
                 self.log_step(db, domain, "DKIM", "WARNING", "DKIM generation failed, but proceeding")
-            
-            # 5. Nginx
-            logger.info(f"[{domain}] Step 5: Deploying Nginx configuration...")
-            if not self.nginx.deploy_config(domain):
-                logger.error(f"[{domain}] NGINX FAIL: deploy_config returned False.")
-                self.log_step(db, domain, "NGINX", "FAILED", "Nginx config deploy failed")
-                self.rollback(db, domain, zone_id, steps_completed)
-                return False
-            
-            steps_completed.append("NGINX")
-            self.log_step(db, domain, "NGINX", "SUCCESS", "Webmail config active")
             
             # 6. Database Setup
             logger.info(f"[{domain}] Step 6: Setting up database records...")
@@ -323,6 +372,11 @@ class DomainProvisioner:
                 # Update Domain Limits
                 mail_domain.max_users = plan.max_users
                 mail_domain.max_aliases = plan.max_aliases
+                
+                # Update ManagedDomain status to active
+                md = db.query(ManagedDomain).filter(ManagedDomain.domain == domain).first()
+                if md:
+                    md.status = "active"
                 db.commit()
                 logger.info(f"[{domain}] Domain limits updated in DB.")
                 
@@ -415,13 +469,14 @@ class DomainProvisioner:
     def delete_domain(self, db: Session, domain: str) -> bool:
         """
         Comprehensive domain deletion workflow:
-        1. Fetch zone token for DNS cleanup
-        2. Delete DNS records (MX, SPF, DMARC, DKIM, CNAME)
-        3. Delete SSL certificates
-        4. Delete Nginx configuration
-        5. Delete DKIM keys
-        6. Delete database records (both tables)
-        7. Delete zone token
+        1. Handle primary webmail domain promotion & sibling CNAME updates
+        2. Fetch zone token for DNS cleanup
+        3. Delete DNS records (MX, SPF, DMARC, DKIM, CNAME)
+        4. Delete SSL certificates (Origin CA cert files)
+        5. Delete Nginx configuration (generated webmail configs)
+        6. Delete DKIM keys
+        7. Delete database records (including ManagedDomain, DomainTlsAsset, MailDomain, etc.)
+        8. Delete zone token
         """
         domain = domain.strip().lower()
         logger.info(f"[{domain}] Starting domain deletion workflow")
@@ -431,6 +486,56 @@ class DomainProvisioner:
         global_cf_email = self.cf.headers.get("X-Auth-Email")
         global_cf_key = self.cf.headers.get("X-Auth-Key")
         
+        # 1. Primary Domain check and promotion
+        from backend.app.models import CloudflareWebmailPrimary, ManagedDomain, DomainTlsAsset
+        primary = db.query(CloudflareWebmailPrimary).filter(
+            CloudflareWebmailPrimary.primary_domain == domain
+        ).first()
+
+        new_primary = None
+        grouping_service = None
+        if primary:
+            logger.info(f"[{domain}] is the active webmail primary for account {primary.cloudflare_account_id}. Triggering promotion...")
+            from backend.app.services.cloudflare_grouping_service import CloudflareGroupingService
+            grouping_service = CloudflareGroupingService()
+            new_primary = grouping_service.promote_new_primary(db, primary.cloudflare_account_id)
+            if new_primary:
+                logger.info(f"[{domain}] Auto-promoted new primary: {new_primary.primary_domain}")
+                siblings = db.query(ManagedDomain).filter(
+                    ManagedDomain.cloudflare_account_id == primary.cloudflare_account_id,
+                    ManagedDomain.domain != domain,
+                    ManagedDomain.status.in_(["active", "managed"])
+                ).all()
+                cf_sibling_service = grouping_service._get_cf_service_for_account(db, primary.cloudflare_account_id)
+                if cf_sibling_service:
+                    for sibling in siblings:
+                        try:
+                            records = cf_sibling_service.list_dns_records(sibling.zone_id)
+                            cname_record_id = None
+                            for r in records:
+                                if r["type"] == "CNAME" and r["name"].startswith("webmail"):
+                                    cname_record_id = r["id"]
+                                    break
+                            
+                            new_cname = {
+                                "type": "CNAME",
+                                "name": f"webmail.{sibling.domain}",
+                                "content": new_primary.primary_hostname,
+                                "proxied": True,
+                                "ttl": 1
+                            }
+                            if cname_record_id:
+                                cf_sibling_service.update_dns_record(sibling.zone_id, cname_record_id, new_cname)
+                            else:
+                                cf_sibling_service.create_dns_record(sibling.zone_id, new_cname)
+                            logger.info(f"Updated sibling CNAME for {sibling.domain} -> {new_primary.primary_hostname}")
+                        except Exception as sib_err:
+                            logger.error(f"Failed to rewrite CNAME for sibling {sibling.domain}: {sib_err}")
+                else:
+                    logger.error(f"No sibling Cloudflare credentials found to rewrite sibling CNAMEs")
+            else:
+                logger.warning(f"No sibling domains to promote for account {primary.cloudflare_account_id}.")
+
         try:
             # Step 1: Get zone token for DNS operations
             zone_token_record = db.query(DomainZoneToken).filter(DomainZoneToken.domain_name == domain).first()
@@ -454,6 +559,19 @@ class DomainProvisioner:
                         try:
                             logger.info(f"[{domain}] Deleting DNS records...")
                             self.cf.delete_mail_dns(zone_id, domain)
+                            
+                            # If it was a primary domain, delete its webmail-origin A/AAAA records
+                            if primary:
+                                if not grouping_service:
+                                    from backend.app.services.cloudflare_grouping_service import CloudflareGroupingService
+                                    grouping_service = CloudflareGroupingService()
+                                cf_primary_service = grouping_service._get_cf_service_for_account(db, primary.cloudflare_account_id)
+                                if cf_primary_service:
+                                    if primary.ipv4_record_id:
+                                        cf_primary_service.delete_dns_record(zone_id, primary.ipv4_record_id)
+                                    if primary.ipv6_record_id:
+                                        cf_primary_service.delete_dns_record(zone_id, primary.ipv6_record_id)
+                            
                             self.log_step(db, domain, "DELETE_DNS", "SUCCESS", "DNS records removed")
                         except Exception as e:
                             error_msg = f"DNS deletion failed: {e}"
@@ -470,26 +588,8 @@ class DomainProvisioner:
             # Step 3: Delete SSL certificates
             try:
                 logger.info(f"[{domain}] Deleting SSL certificates...")
-                
-                # Try both naming conventions
-                cert_files = [
-                    f"/etc/lego/certificates/{domain}.crt",
-                    f"/etc/lego/certificates/{domain}.key",
-                    f"/etc/lego/certificates/{domain}.issuer.crt",
-                    f"/etc/lego/certificates/{domain}.json",
-                    f"/etc/lego/certificates/_.{domain}.crt",
-                    f"/etc/lego/certificates/_.{domain}.key",
-                    f"/etc/lego/certificates/_.{domain}.issuer.crt",
-                    f"/etc/lego/certificates/_.{domain}.json"
-                ]
-                
-                for cert_file in cert_files:
-                    run_sudo(
-                        ["/usr/bin/rm", "-f", cert_file],
-                        capture_output=True,
-                        text=True
-                    )
-                
+                from backend.app.services.cloudflare_origin_ca import CloudflareOriginCAService
+                CloudflareOriginCAService().remove_certificate_files(domain)
                 logger.info(f"[{domain}] SSL certificate cleanup completed")
                 self.log_step(db, domain, "DELETE_SSL", "SUCCESS", "SSL certificates removed")
             except Exception as e:
@@ -501,7 +601,8 @@ class DomainProvisioner:
             # Step 4: Delete Nginx configuration
             try:
                 logger.info(f"[{domain}] Deleting Nginx configuration...")
-                self.nginx.remove_config(domain)
+                from backend.app.services.nginx_webmail_config import NginxWebmailConfigService
+                NginxWebmailConfigService().remove_config(domain)
                 self.log_step(db, domain, "DELETE_NGINX", "SUCCESS", "Nginx config removed")
             except Exception as e:
                 error_msg = f"Nginx deletion failed: {e}"
@@ -569,6 +670,16 @@ class DomainProvisioner:
 
                 domain_stats_deleted = db.query(DomainStats).filter(DomainStats.domain_name == domain).delete(synchronize_session=False)
                 logger.info(f"[{domain}] Deleted DomainStats count: {domain_stats_deleted}")
+
+                # Delete or retire ManagedDomain & DomainTlsAsset
+                md = db.query(ManagedDomain).filter(ManagedDomain.domain == domain).first()
+                if md:
+                    md.status = "retired"
+                db.query(DomainTlsAsset).filter(DomainTlsAsset.domain == domain).delete(synchronize_session=False)
+
+                # Delete primary if we couldn't promote sibling
+                if primary and not new_primary:
+                    db.delete(primary)
 
                 # Delete MailDomain after child records
                 mail_domain_deleted = db.query(MailDomain).filter(MailDomain.name == domain).delete(synchronize_session=False)

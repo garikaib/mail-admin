@@ -3,7 +3,7 @@ import re
 import logging
 from typing import List, Optional
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.app.core.database import get_db
@@ -20,9 +20,10 @@ from backend.app.models import (
     MailDomain, MailUser, MailAlias, AuthUser, DomainAllocation, 
     MailPlan, EncryptedCloudflareCredential, 
     DomainProvisioningLog, DomainZoneToken,
-    UserCredentialAssignment, CredentialDomainAssignment, AdminLog
+    UserCredentialAssignment, CredentialDomainAssignment, AdminLog,
+    ManagedDomain
 )
-from backend.app.schemas import DomainResponse, DomainProvisionRequest, CloudflareCredentialCreate, CloudflareCredentialUpdate, MailPlanResponse, ProvisioningLogResponse, ZoneOwnershipResponse, CloudflareZoneResponse, DNSRecordInput, MailPlanCreate, DomainPlanUpdate
+from backend.app.schemas import DomainResponse, DomainProvisionRequest, CloudflareCredentialCreate, CloudflareCredentialUpdate, MailPlanResponse, ProvisioningLogResponse, ZoneOwnershipResponse, CloudflareZoneResponse, DNSRecordInput, MailPlanCreate, DomainPlanUpdate, DomainAuditResponse, OrphanZoneResponse, UnprovisionedDomainResponse, BrokenWebmailDomainResponse
 from backend.app.services.provisioner import DomainProvisioner
 from backend.app.services.cloudflare import CloudflareService
 
@@ -99,6 +100,16 @@ def list_domains(
             plan_name = alloc.plan.name
             plan_id = alloc.plan.id
             
+        managed = db.query(ManagedDomain).filter(ManagedDomain.domain == d.name).first()
+        is_orphaned = False
+        orphan_reason = None
+        if not managed:
+            is_orphaned = True
+            orphan_reason = "Missing Cloudflare management record"
+        elif not managed.zone_id or not managed.cloudflare_account_id:
+            is_orphaned = True
+            orphan_reason = "Missing Cloudflare zone/account link"
+
         response.append(DomainResponse(
             id=d.id,
             name=d.name,
@@ -106,9 +117,156 @@ def list_domains(
             max_aliases=d.max_aliases,
             is_active=d.is_active,
             plan_name=plan_name,
-            plan_id=plan_id
+            plan_id=plan_id,
+            managed_source=managed.source if managed else None,
+            managed_status=managed.status if managed else None,
+            cloudflare_account_id=managed.cloudflare_account_id if managed else None,
+            zone_id=managed.zone_id if managed else None,
+            is_orphaned=is_orphaned,
+            orphan_reason=orphan_reason
         ))
     return response
+
+@router.get("/audit", response_model=DomainAuditResponse)
+def audit_domains(
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user)
+):
+    """
+    Perform a domain configuration audit (Superusers or domain managers).
+    - Orphan Zones: MailDomain exists, but no Cloudflare zone matches it in known credentials.
+    - Unprovisioned Domains: Discovered Cloudflare zones that don't have a MailDomain configured, with live check of their MX records to detect if they use third-party email.
+    - Broken Webmail: MailDomain exists and is in a known Cloudflare account, but the Cloudflare account has no active primary webmail origin.
+    """
+    require_permission(current_user, db, "domains:read")
+    
+    # 1. Fetch relevant domains
+    allowed_domains = get_user_allowed_domains(current_user, db)
+    if is_super_admin(current_user):
+        mail_domains = db.query(MailDomain).all()
+        managed_domains = db.query(ManagedDomain).all()
+    else:
+        mail_domains = db.query(MailDomain).filter(MailDomain.name.in_(allowed_domains)).all()
+        managed_domains = db.query(ManagedDomain).filter(ManagedDomain.domain.in_(allowed_domains)).all()
+        
+    # 2. Get active credentials and map account/credential/zone relations
+    credentials = db.query(EncryptedCloudflareCredential).all()
+    
+    # Pre-cache zones per credential / account info
+    managed_by_name = {md.domain.lower().strip(): md for md in managed_domains}
+    mail_domains_by_name = {d.name.lower().strip(): d for d in mail_domains}
+    
+    orphan_zones = []
+    broken_webmail_domains = []
+    unprovisioned_domains = []
+    
+    # Check each MailDomain to identify if it is an Orphan Zone or has Broken Webmail
+    from backend.app.models import CloudflareWebmailPrimary
+    
+    for d in mail_domains:
+        d_name_lower = d.name.lower().strip()
+        md = managed_by_name.get(d_name_lower)
+        
+        # Determine if it's an Orphan Zone
+        if not md or not md.zone_id or not md.cloudflare_account_id:
+            orphan_zones.append(OrphanZoneResponse(
+                id=d.id,
+                name=d.name,
+                max_users=d.max_users,
+                max_aliases=d.max_aliases,
+                is_active=d.is_active
+            ))
+            continue
+            
+        # Verify the Cloudflare account associated with the managed domain
+        account_id = md.cloudflare_account_id
+        
+        # Check if the account has an active primary webmail domain
+        primary = db.query(CloudflareWebmailPrimary).filter(
+            CloudflareWebmailPrimary.cloudflare_account_id == account_id,
+            CloudflareWebmailPrimary.status == "active"
+        ).first()
+        
+        # If no primary is active, then webmail CNAME doesn't work (broken webmail, SMTP/IMAP only works)
+        if not primary:
+            broken_webmail_domains.append(BrokenWebmailDomainResponse(
+                id=d.id,
+                name=d.name,
+                cloudflare_account_id=account_id,
+                zone_id=md.zone_id,
+                reason="No active primary webmail origin is allocated for this Cloudflare account. Webmail CNAME is invalid/missing target."
+            ))
+            
+    # Check ManagedDomain zones to find Unprovisioned Domains (zone exists in Cloudflare but no MailDomain exists)
+    for md in managed_domains:
+        domain_name = md.domain.lower().strip()
+        if domain_name not in mail_domains_by_name:
+            # This is unprovisioned!
+            # Let's detect if it uses third-party email
+            cred_id = md.credential_id_last_used
+            
+            # Find account name if available
+            account_name = None
+            if md.account:
+                account_name = md.account.name
+                
+            email_provider = "No MX Records"
+            mx_records = []
+            
+            # Find any credential that has access to this zone/account
+            cred = None
+            if cred_id:
+                cred = db.query(EncryptedCloudflareCredential).filter(EncryptedCloudflareCredential.id == cred_id).first()
+            if not cred and credentials:
+                from backend.app.models import CloudflareCredentialAccount
+                cca = db.query(CloudflareCredentialAccount).filter(CloudflareCredentialAccount.cloudflare_account_id == md.cloudflare_account_id).first()
+                if cca:
+                    cred = db.query(EncryptedCloudflareCredential).filter(EncryptedCloudflareCredential.id == cca.credential_id).first()
+            
+            if cred:
+                try:
+                    decrypted_key = cred.get_api_key()
+                    if decrypted_key:
+                        if len(decrypted_key) > 37 or '-' in decrypted_key:
+                            cf_service = CloudflareService(api_token=decrypted_key)
+                        else:
+                            cf_service = CloudflareService(email=cred.email, api_key=decrypted_key)
+                        
+                        records = cf_service.list_dns_records(md.zone_id)
+                        mx_recs = [r for r in records if r.get("type") == "MX"]
+                        if mx_recs:
+                            mx_records = [f"Priority {r.get('priority', 10)}: {r.get('content')}" for r in mx_recs]
+                            
+                            combined_targets = " ".join([r.get("content", "").lower() for r in mx_recs])
+                            if "google.com" in combined_targets or "googlemail.com" in combined_targets:
+                                email_provider = "Google Workspace"
+                            elif "outlook.com" in combined_targets:
+                                email_provider = "Microsoft 365"
+                            elif "zoho" in combined_targets:
+                                email_provider = "Zoho Mail"
+                            elif "mail.zimprices.co.zw" in combined_targets:
+                                email_provider = "ZimPrices Mail"
+                            else:
+                                primary_mx = mx_recs[0].get("content")
+                                email_provider = f"Third-party ({primary_mx})"
+                except Exception as e:
+                    logger.warning(f"Failed to query MX records from Cloudflare for {domain_name}: {e}")
+                    email_provider = "Query Error (MX)"
+            
+            unprovisioned_domains.append(UnprovisionedDomainResponse(
+                name=md.domain,
+                cloudflare_account_id=md.cloudflare_account_id,
+                cloudflare_account_name=account_name,
+                credential_id=cred.id if cred else None,
+                email_provider=email_provider,
+                mx_records=mx_records
+            ))
+            
+    return DomainAuditResponse(
+        orphan_zones=orphan_zones,
+        unprovisioned_domains=unprovisioned_domains,
+        broken_webmail_domains=broken_webmail_domains
+    )
 
 @router.get("/plans", response_model=List[MailPlanResponse])
 def get_plans(
@@ -575,12 +733,15 @@ def provision_domain(
     provisioner = DomainProvisioner(cf_email=email, cf_key=api_key)
     zone_id = None
     zone_token_secret = None
+    dt = db.query(DomainZoneToken).filter(DomainZoneToken.domain_name == domain).first()
     
     try:
-        dt = db.query(DomainZoneToken).filter(DomainZoneToken.domain_name == domain).first()
+        account_id = None
         if dt:
             zone_token_secret = dt.get_token()
             zone_id = provisioner.cf.get_zone_id(domain)
+            zone_details = provisioner.cf.get_zone(zone_id)
+            account_id = zone_details.get("account", {}).get("id") if zone_details else None
         else:
             # Generate new zone token
             from backend.app.services.cf_token_generator import CloudflareTokenGenerator
@@ -603,13 +764,54 @@ def provision_domain(
             
         provisioner.cf = CloudflareService(api_token=zone_token_secret)
         
+        # Ensure CloudflareAccount and ManagedDomain records exist/are synced
+        from backend.app.models import CloudflareAccount, ManagedDomain
+        if account_id:
+            cf_acc = db.query(CloudflareAccount).filter(CloudflareAccount.cloudflare_account_id == account_id).first()
+            if not cf_acc:
+                account_name = "Discovered Account"
+                if dt:
+                    try:
+                        zone_details = provisioner.cf.get_zone(zone_id)
+                        account_name = zone_details.get("account", {}).get("name", "Discovered Account")
+                    except Exception:
+                        pass
+                cf_acc = CloudflareAccount(cloudflare_account_id=account_id, name=account_name)
+                db.add(cf_acc)
+                db.commit()
+
+        md = db.query(ManagedDomain).filter(ManagedDomain.domain == domain).first()
+        if not md:
+            md = ManagedDomain(domain=domain, zone_id=zone_id, cloudflare_account_id=account_id, source="provisioned", status="provisioning")
+            db.add(md)
+        else:
+            md.status = "provisioning"
+            if zone_id:
+                md.zone_id = zone_id
+            if account_id:
+                md.cloudflare_account_id = account_id
+        db.commit()
+
+        # Resolve or allocate primary webmail origin
+        from backend.app.services.cloudflare_grouping_service import CloudflareGroupingService
+        grouping_service = CloudflareGroupingService()
+        primary = grouping_service.resolve_or_allocate_primary(
+            db,
+            account_id,
+            fallback_domain=domain,
+            cf_override=CloudflareService(email=email, api_key=api_key)
+        )
+        if not primary:
+            raise HTTPException(status_code=500, detail="Could not allocate account-local webmail primary")
+        webmail_cname_target = primary.primary_hostname
+        
         # Pre-generate DKIM key so we have the actual public key record
         selector, dkim_pub = provisioner.dkim.generate_dkim_key(domain)
         if not selector or not dkim_pub:
             raise HTTPException(status_code=500, detail="Failed to generate DKIM key pair")
             
-        # Get proposed DNS records
-        records = provisioner.cf.get_default_mail_records(zone_id, domain)
+        # Get proposed DNS records with account-aware target
+        records = provisioner.cf.get_default_mail_records(zone_id, domain, webmail_cname_target=webmail_cname_target)
         
         # Add the DKIM TXT record to proposed list
         records.append({
@@ -969,4 +1171,92 @@ def delete_zone_dns_record(
         
     audit_log(db, current_user.username, "DELETE_CF_DNS_RECORD", zone_name, f"Record ID {record_id}")
     return {"message": "DNS record deleted successfully"}
+
+
+@router.post("/sync")
+def sync_cloudflare_accounts_and_zones(
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user)
+):
+    """Sync Cloudflare accounts and zones visible to global credentials."""
+    require_permission(current_user, db, "domains:provision")
+    from backend.app.services.cloudflare_grouping_service import CloudflareGroupingService
+    service = CloudflareGroupingService()
+    res = service.discover_and_sync_accounts_and_zones(db)
+    audit_log(db, current_user.username, "SYNC_CLOUDFLARE_ACCOUNTS", "system", f"Accounts synced: {res['synced_accounts']}, Domains: {res['synced_domains']}")
+    return res
+
+
+@router.get("/warnings")
+def get_webmail_integrity_warnings(
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user)
+):
+    """Run integrity worker in dry-run mode to get active warnings."""
+    require_permission(current_user, db, "domains:read")
+    from backend.app.services.integrity import WebmailIntegrityWorker
+    worker = WebmailIntegrityWorker()
+    warnings = worker.run_checks(db, auto_repair=False)
+    return {"warnings": warnings}
+
+
+@router.post("/repair")
+def run_webmail_integrity_repair(
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user)
+):
+    """Run integrity worker in apply/auto-repair mode."""
+    require_permission(current_user, db, "domains:provision")
+    from backend.app.services.integrity import WebmailIntegrityWorker
+    worker = WebmailIntegrityWorker()
+    warnings_before = worker.run_checks(db, auto_repair=True)
+    warnings_after = worker.run_checks(db, auto_repair=False)
+    audit_log(db, current_user.username, "REPAIR_WEBMAIL_INTEGRITY", "system", f"Repaired warnings. Before: {len(warnings_before)}, After: {len(warnings_after)}")
+    return {
+        "message": "Integrity repair executed successfully",
+        "warnings_repaired": len(warnings_before) - len(warnings_after),
+        "active_warnings": warnings_after
+    }
+
+
+@router.post("/migrate")
+def migrate_existing_domains(
+    dry_run: bool = Query(True, description="Run in dry-run mode (no changes written)"),
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user)
+):
+    """Dry-run or apply migration of existing domains to new grouping and routing structure."""
+    require_permission(current_user, db, "domains:provision")
+    
+    from backend.app.services.cloudflare_grouping_service import CloudflareGroupingService
+    from backend.app.services.integrity import WebmailIntegrityWorker
+    
+    grouping_service = CloudflareGroupingService()
+    worker = WebmailIntegrityWorker()
+    
+    # 1. Sync accounts
+    sync_res = grouping_service.discover_and_sync_accounts_and_zones(db)
+    
+    # 2. Check warnings
+    warnings_before = worker.run_checks(db, auto_repair=False)
+    
+    if not dry_run:
+        # Run in apply/repair mode
+        worker.run_checks(db, auto_repair=True)
+        warnings_after = worker.run_checks(db, auto_repair=False)
+        audit_log(db, current_user.username, "MIGRATE_WEBMAIL_GROUPING", "system", "Applied webmail account grouping migration")
+        return {
+            "message": "Migration applied successfully",
+            "sync_details": sync_res,
+            "repaired_count": len(warnings_before) - len(warnings_after),
+            "remaining_warnings": warnings_after
+        }
+    else:
+        audit_log(db, current_user.username, "MIGRATE_WEBMAIL_GROUPING_DRYRUN", "system", "Dry-run webmail account grouping migration")
+        return {
+            "message": "Migration dry-run completed",
+            "sync_details": sync_res,
+            "detected_issues": warnings_before
+        }
+
 

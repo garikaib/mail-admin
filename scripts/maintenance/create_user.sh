@@ -2,7 +2,12 @@
 DOMAIN="zimprices.co.zw"
 USER="gbdzoma"
 EMAIL="${USER}@${DOMAIN}"
-PASSWORD="ChangeMe123!"
+PASSWORD="${MAILBOX_PASSWORD:-}"
+
+if [ -z "$PASSWORD" ]; then
+    echo "MAILBOX_PASSWORD must be set; refusing to use an insecure default password" >&2
+    exit 1
+fi
 
 # Generate Hash
 HASH=$(doveadm pw -s SHA512-CRYPT -p "$PASSWORD")

@@ -1,5 +1,6 @@
 import os
 import logging
+import logging.handlers
 import ipaddress
 from datetime import datetime, timedelta
 import geoip2.database
@@ -8,6 +9,23 @@ from backend.app.core.sudo import run_sudo
 from backend.app.models import GeoDomainPolicy, GeoUserException, GeoActiveBan, MailDomain, MailUser, GeoSshPolicy, GeoRegion
 
 logger = logging.getLogger(__name__)
+
+# Dedicated NFT logger to write to logs/nft_operations.log without propagating to root logger (avoiding system/email alerts)
+nft_logger = logging.getLogger("backend.nft")
+nft_logger.setLevel(logging.INFO)
+nft_logger.propagate = False
+
+try:
+    log_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "logs"))
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, "nft_operations.log")
+    file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=1024*1024*5, backupCount=5)
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    nft_logger.addHandler(file_handler)
+except Exception as e:
+    # Fallback to root logger if file logging fails for any permission reasons in test env
+    logger.error(f"Failed to initialize dedicated NFT logging file: {e}")
+    nft_logger.addHandler(logging.StreamHandler())
 
 def get_regions_dict(db: Session) -> dict[str, set[str]]:
     """Loads regions from the database, falling back to predefined values if none are found."""
@@ -85,23 +103,102 @@ def get_country_code(ip_str: str) -> str:
         except Exception:
             return "UNKNOWN"
 
+def validate_nft_command(cmd: list[str]) -> bool:
+    """
+    Validates the nft command arguments before execution to prevent
+    arbitrary execution and ensure correct formatting.
+    """
+    if not cmd or not isinstance(cmd, list):
+        return False
+    
+    # 1. Allowed executable paths
+    if cmd[0] not in ("/usr/sbin/nft", "/usr/bin/nft"):
+        return False
+        
+    # 2. Action validation
+    if len(cmd) < 7:
+        return False
+        
+    action = cmd[1]
+    if action not in ("add", "delete"):
+        return False
+        
+    if cmd[2] != "element":
+        return False
+        
+    # 3. Family check
+    family = cmd[3]
+    if family not in ("ip", "ip6"):
+        return False
+        
+    if cmd[4] != "filter":
+        return False
+        
+    # 4. Set validation
+    set_name = cmd[5]
+    allowed_sets = ("geo_mail_bans", "geo_ssh_bans", "geo_mail_bans_v6", "geo_ssh_bans_v6")
+    if set_name not in allowed_sets:
+        return False
+        
+    # 5. IP Address validation
+    ip_str = cmd[6]
+    try:
+        ip = ipaddress.ip_address(ip_str)
+        # Ensure family matches the IP version
+        if ip.version == 4 and family != "ip":
+            return False
+        if ip.version == 6 and family != "ip6":
+            return False
+    except ValueError:
+        return False
+        
+    # 6. Timeout options validation
+    if action == "add":
+        if len(cmd) == 9:
+            if cmd[7] != "timeout":
+                return False
+            # Check if value ends with 's' and prefix is digit
+            timeout_val = cmd[8]
+            if not timeout_val.endswith("s") or not timeout_val[:-1].isdigit():
+                return False
+        elif len(cmd) != 7:
+            return False
+    elif action == "delete":
+        if len(cmd) != 7:
+            return False
+            
+    return True
+
 def run_nft_command(cmd: list[str]) -> bool:
     """
-    Executes an nft command with sudo. Mocked in development mode.
+    Executes an nft command with sudo after validation. Mocked in development mode.
+    Logs operations and errors to a dedicated log file to prevent email alerts.
     """
+    # Programmatic input validation
+    if not validate_nft_command(cmd):
+        nft_logger.error(f"Command validation failed: {' '.join(cmd)}")
+        return False
+
     is_prod = os.getenv("ENVIRONMENT", "development").lower() == "production"
     if not is_prod:
-        logger.info(f"[MOCK NFT] Executing: {' '.join(cmd)}")
+        nft_logger.info(f"[MOCK NFT] Executing: {' '.join(cmd)}")
         return True
 
     try:
+        nft_logger.info(f"Executing: {' '.join(cmd)}")
         result = run_sudo(cmd, capture_output=True, text=True, timeout=5)
         if result.returncode != 0:
-            logger.error(f"Nftables command failed: {' '.join(cmd)} stderr={result.stderr.strip()}")
+            nft_logger.error(
+                f"Nftables command failed: {' '.join(cmd)}\n"
+                f"Exit code: {result.returncode}\n"
+                f"Stdout: {result.stdout.strip()}\n"
+                f"Stderr: {result.stderr.strip()}"
+            )
             return False
+        nft_logger.info(f"Command succeeded: {' '.join(cmd)}")
         return True
     except Exception as e:
-        logger.error(f"Failed to execute nft command: {e}")
+        nft_logger.exception(f"Failed to execute nft command: {e}")
         return False
 
 def add_ip_to_nftables(ip_str: str, service: str, timeout_seconds: int = 1800) -> bool:
@@ -121,7 +218,7 @@ def add_ip_to_nftables(ip_str: str, service: str, timeout_seconds: int = 1800) -
         family = "ip6"
         set_name = "geo_mail_bans_v6" if service == "mail" else "geo_ssh_bans_v6"
 
-    cmd = ["/usr/sbin/nft", "add", "element", family, "filter", set_name, f"{{ {ip_str} timeout {timeout_seconds}s }}"]
+    cmd = ["/usr/sbin/nft", "add", "element", family, "filter", set_name, ip_str, "timeout", f"{timeout_seconds}s"]
     return run_nft_command(cmd)
 
 def remove_ip_from_nftables(ip_str: str, service: str) -> bool:
@@ -140,7 +237,7 @@ def remove_ip_from_nftables(ip_str: str, service: str) -> bool:
         family = "ip6"
         set_name = "geo_mail_bans_v6" if service == "mail" else "geo_ssh_bans_v6"
 
-    cmd = ["/usr/sbin/nft", "delete", "element", family, "filter", set_name, f"{{ {ip_str} }}"]
+    cmd = ["/usr/sbin/nft", "delete", "element", family, "filter", set_name, ip_str]
     return run_nft_command(cmd)
 
 def check_login_policy(db: Session, username: str, remote_ip: str, service: str) -> tuple[bool, str]:
@@ -272,25 +369,32 @@ def trigger_ban(db: Session, ip_str: str, service: str, duration_minutes: int = 
         GeoActiveBan.service == service
     ).first()
 
+    now = datetime.utcnow()
+    should_enforce_nftables = True
+
     if existing_ban:
+        was_active = existing_ban.expires_at and existing_ban.expires_at > now
         existing_ban.ban_count += 1
         # Exponential scaling: 30m, 60m, 120m, 240m, 480m, ... up to 10080m (1 week)
         duration_minutes = min(30 * (2 ** (existing_ban.ban_count - 1)), 10080)
-        existing_ban.expires_at = datetime.utcnow() + timedelta(minutes=duration_minutes)
+        existing_ban.expires_at = now + timedelta(minutes=duration_minutes)
+        should_enforce_nftables = not was_active
     else:
         duration_minutes = 30
         existing_ban = GeoActiveBan(
             ip_address=ip_str,
             service=service,
-            expires_at=datetime.utcnow() + timedelta(minutes=duration_minutes),
+            expires_at=now + timedelta(minutes=duration_minutes),
             ban_count=1
         )
         db.add(existing_ban)
-    
+
     db.commit()
 
-    # Enforce in Nftables
-    add_ip_to_nftables(ip_str, service, duration_minutes * 60)
+    # An already-active ban should already exist in nftables. Avoid re-running
+    # nft for every repeated login attempt from the same source.
+    if should_enforce_nftables:
+        add_ip_to_nftables(ip_str, service, duration_minutes * 60)
 
 def reconcile_bans_on_boot(db: Session):
     """

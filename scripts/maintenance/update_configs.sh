@@ -7,13 +7,23 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+MAIL_DB_HOST="${MAIL_DB_HOST:-${DB_HOST:-127.0.0.1}}"
+MAIL_DB_USER="${MAIL_DB_USER:-${DB_USER:-mailuser}}"
+MAIL_DB_NAME="${MAIL_DB_NAME:-${DB_NAME:-mailserver}}"
+MAIL_DB_PASS="${MAIL_DB_PASS:-${DB_PASS:-}}"
+
+if [ -z "$MAIL_DB_PASS" ]; then
+  echo "MAIL_DB_PASS or DB_PASS must be set; refusing to write configs with an insecure default password" >&2
+  exit 1
+fi
+
 # 1. Update Postfix MySQL Maps
 echo "Updating Postfix MySQL maps..."
 sudo tee /etc/postfix/mysql-virtual-mailbox-maps.cf > /dev/null <<EOF
-user = mailuser
-password = ChangeMe123!
-hosts = 127.0.0.1
-dbname = mailserver
+user = ${MAIL_DB_USER}
+password = ${MAIL_DB_PASS}
+hosts = ${MAIL_DB_HOST}
+dbname = ${MAIL_DB_NAME}
 query = SELECT 1 FROM users WHERE mail='%s'
 EOF
 
@@ -21,7 +31,7 @@ EOF
 echo "Updating Dovecot SQL config..."
 sudo tee /etc/dovecot/dovecot-sql.conf.ext > /dev/null <<EOF
 driver = mysql
-connect = host=127.0.0.1 dbname=mailserver user=mailuser password=ChangeMe123!
+connect = host=${MAIL_DB_HOST} dbname=${MAIL_DB_NAME} user=${MAIL_DB_USER} password=${MAIL_DB_PASS}
 default_pass_scheme = SHA512-CRYPT
 # Map 'mail' to user, 'c_password' to password
 password_query = SELECT mail as user, c_password as password FROM users WHERE mail='%u';
@@ -34,9 +44,9 @@ echo "Updating SOGo config..."
 sudo tee /etc/sogo/sogo.conf > /dev/null <<EOF
 {
   /* Database configuration */
-  SOGoProfileURL = "mysql://mailuser:ChangeMe123!@127.0.0.1:3306/mailserver/sogo_user_profile";
-  OCSFolderInfoURL = "mysql://mailuser:ChangeMe123!@127.0.0.1:3306/mailserver/sogo_folder_info";
-  OCSSessionsFolderURL = "mysql://mailuser:ChangeMe123!@127.0.0.1:3306/mailserver/sogo_sessions_folder";
+  SOGoProfileURL = "mysql://${MAIL_DB_USER}:${MAIL_DB_PASS}@${MAIL_DB_HOST}:3306/${MAIL_DB_NAME}/sogo_user_profile";
+  OCSFolderInfoURL = "mysql://${MAIL_DB_USER}:${MAIL_DB_PASS}@${MAIL_DB_HOST}:3306/${MAIL_DB_NAME}/sogo_folder_info";
+  OCSSessionsFolderURL = "mysql://${MAIL_DB_USER}:${MAIL_DB_PASS}@${MAIL_DB_HOST}:3306/${MAIL_DB_NAME}/sogo_sessions_folder";
 
   /* Mail */
   SOGoMailingMechanism = smtp;
@@ -51,7 +61,7 @@ sudo tee /etc/sogo/sogo.conf > /dev/null <<EOF
     {
       type = sql;
       id = users;
-      viewURL = "mysql://mailuser:ChangeMe123!@127.0.0.1:3306/mailserver/users";
+      viewURL = "mysql://${MAIL_DB_USER}:${MAIL_DB_PASS}@${MAIL_DB_HOST}:3306/${MAIL_DB_NAME}/users";
       canAuthenticate = YES;
       isAddressBook = YES;
       userPasswordAlgorithm = crypt;

@@ -23,7 +23,9 @@ def migrate():
     # MariaDB config from manual env parse
     db_host = env.get('MAIL_DB_HOST', 'localhost')
     db_user = env.get('MAIL_DB_USER', 'mailuser')
-    db_pass = env.get('MAIL_DB_PASS', 'ChangeMe123!')
+    db_pass = env.get('MAIL_DB_PASS') or env.get('DB_PASS')
+    if not db_pass:
+        raise RuntimeError('MAIL_DB_PASS or DB_PASS must be set; refusing to use an insecure default password')
     db_name = env.get('MAIL_DB_NAME', 'mailserver')
 
     try:

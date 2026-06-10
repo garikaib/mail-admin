@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Generate and send daily email usage report using pflogsum.
-Target recipients: garikaib@gmail.com, garikai@zimpricecheck.com
+Target recipient: garikai@zimpricecheck.com
 Schedule: Daily at 8:00 Africa/Harare (06:00 UTC)
 """
 
@@ -16,7 +16,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from secrets_loader import load_secrets
 
-RECIPIENTS = ["garikaib@gmail.com", "garikai@zimpricecheck.com"]
+RECIPIENTS = ["garikai@zimpricecheck.com"]
 SUBJECT = f"Daily Email Usage Report - {datetime.date.today() - datetime.timedelta(days=1)}"
 LOG_FILE = "/var/log/mail.log.1" # Analysis for the previous day (log rotated daily)
 

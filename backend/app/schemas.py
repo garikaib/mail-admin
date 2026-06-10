@@ -72,6 +72,12 @@ class DomainResponse(BaseModel):
     is_active: bool
     plan_name: Optional[str] = None
     plan_id: Optional[int] = None
+    managed_source: Optional[str] = None
+    managed_status: Optional[str] = None
+    cloudflare_account_id: Optional[str] = None
+    zone_id: Optional[str] = None
+    is_orphaned: bool = False
+    orphan_reason: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -79,6 +85,34 @@ class DomainResponse(BaseModel):
 class DomainPlanUpdate(BaseModel):
     plan_id: int = Field(..., description="The ID of the plan to assign")
     is_active: bool = Field(..., description="Whether the domain is active")
+
+class OrphanZoneResponse(BaseModel):
+    id: int
+    name: str
+    max_users: int
+    max_aliases: int
+    is_active: bool
+
+class UnprovisionedDomainResponse(BaseModel):
+    name: str
+    cloudflare_account_id: Optional[str] = None
+    cloudflare_account_name: Optional[str] = None
+    credential_id: Optional[int] = None
+    email_provider: str
+    mx_records: list[str] = []
+
+class BrokenWebmailDomainResponse(BaseModel):
+    id: int
+    name: str
+    cloudflare_account_id: Optional[str] = None
+    zone_id: Optional[str] = None
+    reason: str
+
+class DomainAuditResponse(BaseModel):
+    orphan_zones: list[OrphanZoneResponse]
+    unprovisioned_domains: list[UnprovisionedDomainResponse]
+    broken_webmail_domains: list[BrokenWebmailDomainResponse]
+
 
 # ----------------- User (Mailbox) Schemas -----------------
 
