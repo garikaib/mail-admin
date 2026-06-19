@@ -19,12 +19,14 @@ import {
 } from './shared/lib/helpers';
 
 import { CredentialsPanel } from './features/credentials/CredentialsPanel';
+import { api } from './shared/api/client';
 import { ServerHealthPanel } from './features/server-health/ServerHealthPanel';
 import { LogsPanel } from './features/logs/LogsPanel';
 import { UsersPanel } from './features/users/UsersPanel';
 import { PlansPanel } from './features/plans/PlansPanel';
 import { RegistrationsPanel } from './features/registrations/RegistrationsPanel';
 import { GeoAuthPanel } from './features/geo-auth/GeoAuthPanel';
+import useAppStore from './store/useAppStore';
 
 const DASHBOARD_ROUTES = [
   {
@@ -105,61 +107,34 @@ export default function App() {
   const [selectedDomain, setSelectedDomain] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  // App Data State
-  const [domains, setDomains] = useState([]);
-  const [plans, setPlans] = useState([]);
-  const [registrations, setRegistrations] = useState([]);
-  const [cfCredentialId, setCfCredentialId] = useState('');
-  const [searchDomainName, setSearchDomainName] = useState('');
-  const [searchResult, setSearchResult] = useState(null);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [cfLoading, setCfLoading] = useState(false);
-  const [cfResult, setCfResult] = useState(null);
-  
-  const [regAction, setRegAction] = useState('N');
-  const [ownerName, setOwnerName] = useState('');
-  const [ownerOrg, setOwnerOrg] = useState('Civil Engineering Projects');
-  const [ownerAddress, setOwnerAddress] = useState('');
-  const [ownerCity, setOwnerCity] = useState('Harare');
-  const [ownerCountry, setOwnerCountry] = useState('Zimbabwe');
-  const [ownerPhone, setOwnerPhone] = useState('');
-  const [ownerFax, setOwnerFax] = useState('None');
-  const [ownerEmail, setOwnerEmail] = useState('');
-  const [submitLoading, setSubmitLoading] = useState(false);
-  const [regFilter, setRegFilter] = useState('all');
-  const [isBulkReg, setIsBulkReg] = useState(false);
-  const [bulkDomainsInput, setBulkDomainsInput] = useState('');
-  const [bulkResult, setBulkResult] = useState(null);
-  const [bulkLoading, setBulkLoading] = useState(false);
-
-  const [credentials, setCredentials] = useState([]);
-  const [auditLogs, setAuditLogs] = useState([]);
-  const [systemHealth, setSystemHealth] = useState(null);
-  
-  const [mailboxes, setMailboxes] = useState([]);
-  const [aliases, setAliases] = useState([]);
-  const [provisionLogs, setProvisionLogs] = useState([]);
-  const [pollingDomain, setPollingDomain] = useState(null);
-  const [trackedProvisioningDomain, setTrackedProvisioningDomain] = useState(null);
-  const [showProvisioningModal, setShowProvisioningModal] = useState(false);
-  const [copied, setCopied] = useState(false);
-  
-  // Forms & UI control
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
-  const [showAddDomainModal, setShowAddDomainModal] = useState(false);
-  const [showDnsReviewModal, setShowDnsReviewModal] = useState(false);
-  const [dnsReviewData, setDnsReviewData] = useState(null);
-  const [editedDnsRecords, setEditedDnsRecords] = useState([]);
+  const {
+  domains, setDomains,
+  plans, setPlans,
+  credentials, setCredentials,
+  systemHealth, setSystemHealth,
+  mailboxes, setMailboxes,
+  aliases, setAliases,
+  showAddCredModal, setShowAddCredModal,
+  showEditCredModal, setShowEditCredModal,
+  editingCredential, setEditingCredential,
+  editCredLabel, setEditCredLabel,
+  editCredEmail, setEditCredEmail,
+  editCredKey, setEditCredKey,
+  provisionLogs, setProvisionLogs,
+  pollingDomain, setPollingDomain,
+  trackedProvisioningDomain, setTrackedProvisioningDomain,
+  showProvisioningModal, setShowProvisioningModal,
+  loading, setLoading,
+  errorMsg, setErrorMsg,
+  successMsg, setSuccessMsg,
+  showAddDomainModal, setShowAddDomainModal,
+  showDnsReviewModal, setShowDnsReviewModal,
+  dnsReviewData, setDnsReviewData,
+  editedDnsRecords, setEditedDnsRecords,
+  copied, setCopied,
+} = useAppStore();
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [showAddAliasModal, setShowAddAliasModal] = useState(false);
-  const [showAddCredModal, setShowAddCredModal] = useState(false);
-  const [showEditCredModal, setShowEditCredModal] = useState(false);
-  const [editingCredential, setEditingCredential] = useState(null);
-  const [editCredLabel, setEditCredLabel] = useState('');
-  const [editCredEmail, setEditCredEmail] = useState('');
-  const [editCredKey, setEditCredKey] = useState('');
   const [confirmModal, setConfirmModal] = useState(null);
   const [resetPwdModal, setResetPwdModal] = useState(null);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
@@ -179,9 +154,6 @@ export default function App() {
   const [logsPriority, setLogsPriority] = useState('all');
   const [logsQuery, setLogsQuery] = useState('');
   const [serviceRailExpanded, setServiceRailExpanded] = useState(false);
-  const [auditFilters, setAuditFilters] = useState({ q: '', admin_email: '', action: '', target: '', from: '', to: '', limit: 100 });
-  const [auditPurgePreset, setAuditPurgePreset] = useState('yesterday');
-  const [auditPurgeDate, setAuditPurgeDate] = useState('');
   const [configFiles, setConfigFiles] = useState([]);
   const [selectedConfigId, setSelectedConfigId] = useState('');
   const [configContent, setConfigContent] = useState('');
@@ -242,17 +214,6 @@ export default function App() {
   const [dnsRecordProxied, setDnsRecordProxied] = useState(false);
   const [dnsRecordTtl, setDnsRecordTtl] = useState('3600');
 
-  // Console Users State
-  const [consoleUsers, setConsoleUsers] = useState([]);
-  const [showAddConsoleUserModal, setShowAddConsoleUserModal] = useState(false);
-  const [showEditConsoleUserModal, setShowEditConsoleUserModal] = useState(false);
-  const [selectedConsoleUser, setSelectedConsoleUser] = useState(null);
-  const [consoleUserSearch, setConsoleUserSearch] = useState('');
-  const [consoleUserRoleFilter, setConsoleUserRoleFilter] = useState('all');
-  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
-  const [pwdModalError, setPwdModalError] = useState('');
-  const [pwdModalSuccess, setPwdModalSuccess] = useState('');
-  const [pwdModalLoading, setPwdModalLoading] = useState(false);
   
   // Temporary Form Inputs
   const [newDomainName, setNewDomainName] = useState('');
@@ -275,28 +236,10 @@ export default function App() {
   const [newCredLabel, setNewCredLabel] = useState('');
   const [newCredEmail, setNewCredEmail] = useState('');
   const [newCredKey, setNewCredKey] = useState('');
-  
-  // Console User Modal Form States
-  const [addConsoleUsername, setAddConsoleUsername] = useState('');
-  const [addConsolePassword, setAddConsolePassword] = useState('');
-  const [addConsoleIsSuper, setAddConsoleIsSuper] = useState(false);
-  const [addConsoleRoles, setAddConsoleRoles] = useState([]);
-  const [addConsoleDomains, setAddConsoleDomains] = useState([]);
-
-  const [editConsoleIsSuper, setEditConsoleIsSuper] = useState(false);
-  const [editConsoleRoles, setEditConsoleRoles] = useState([]);
-  const [editConsoleDomains, setEditConsoleDomains] = useState([]);
-  const [editConsolePassword, setEditConsolePassword] = useState('');
-
-  // Plan Modal Form States
-  const [showAddPlanModal, setShowAddPlanModal] = useState(false);
-  const [showEditPlanModal, setShowEditPlanModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState(null);
-  const [planName, setPlanName] = useState('');
-  const [planMaxUsers, setPlanMaxUsers] = useState(10);
-  const [planMaxAliases, setPlanMaxAliases] = useState(20);
-  const [planQuotaMb, setPlanQuotaMb] = useState(1024);
-  const [planIsDefault, setPlanIsDefault] = useState(false);
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [pwdModalError, setPwdModalError] = useState('');
+  const [pwdModalSuccess, setPwdModalSuccess] = useState('');
+  const [pwdModalLoading, setPwdModalLoading] = useState(false);
 
   useEffect(() => {
     if (logsService && logsContainerRef.current && window.innerWidth < 768) {
@@ -304,67 +247,7 @@ export default function App() {
     }
   }, [logsService]);
 
-  const resetPlanForm = () => {
-    setSelectedPlan(null);
-    setPlanName('');
-    setPlanMaxUsers(10);
-    setPlanMaxAliases(20);
-    setPlanQuotaMb(1024);
-    setPlanIsDefault(false);
-  };
 
-  const handleEditPlan = (p) => {
-    setSelectedPlan(p);
-    if (p) {
-      setPlanName(p.name);
-      setPlanMaxUsers(p.max_users);
-      setPlanMaxAliases(p.max_aliases);
-      setPlanQuotaMb(p.quota_mb);
-      setPlanIsDefault(p.is_default);
-    } else {
-      setPlanName('');
-      setPlanMaxUsers(10);
-      setPlanMaxAliases(20);
-      setPlanQuotaMb(1024);
-      setPlanIsDefault(false);
-    }
-    setShowEditPlanModal(true);
-  };
-
-  const handleAddPlanClick = () => {
-    setSelectedPlan(null);
-    setPlanName('');
-    setPlanMaxUsers(10);
-    setPlanMaxAliases(20);
-    setPlanQuotaMb(1024);
-    setPlanIsDefault(false);
-    setShowAddPlanModal(true);
-  };
-
-  const handleEditConsoleUser = (u) => {
-    setSelectedConsoleUser(u);
-    if (u) {
-      setEditConsoleIsSuper(u.is_superuser);
-      setEditConsoleRoles(u.roles.map(r => r.role));
-      setEditConsoleDomains(u.assignments.map(a => a.domain_name));
-      setEditConsolePassword('');
-    } else {
-      setEditConsoleIsSuper(false);
-      setEditConsoleRoles([]);
-      setEditConsoleDomains([]);
-      setEditConsolePassword('');
-    }
-    setShowEditConsoleUserModal(true);
-  };
-
-  const handleCloseEditConsoleUserModal = () => {
-    setShowEditConsoleUserModal(false);
-    setSelectedConsoleUser(null);
-    setEditConsoleIsSuper(false);
-    setEditConsoleRoles([]);
-    setEditConsoleDomains([]);
-    setEditConsolePassword('');
-  };
 
   // URL Path Routing Effect
   useEffect(() => {
@@ -808,21 +691,13 @@ export default function App() {
     fetchPlans(authToken);
     fetchCredentials(authToken);
     fetchCloudflareZones(authToken);
-    if (isSuper || userPermissions.includes('registrations:read')) {
-      fetchRegistrations(authToken);
-    }
     if (isSuper || userPermissions.includes('system:health')) {
       fetchSystemHealth(authToken);
     }
     if (isSuper || userPermissions.includes('system:service_status')) {
       fetchDetailedServices(authToken);
     }
-    if (isSuper || userPermissions.includes('system:logs')) {
-      fetchAuditLogs(authToken);
-    }
-    if (isSuper || userPermissions.includes('users:read')) {
-      fetchConsoleUsers(authToken);
-    }
+
     if (isSuper || userPermissions.includes('geo_mail:view') || userPermissions.includes('geo_ssh:view')) {
       fetchGeoData(authToken);
     }
@@ -983,6 +858,37 @@ export default function App() {
 
 
 
+  const handleDeleteGeoException = async (username, service, allowedCountries = '', expiresAt = null) => {
+    if (!window.confirm(`Delete exception for ${username} (${service})?`)) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/geo-auth/exceptions`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          username,
+          service,
+          allowed_countries: allowedCountries,
+          expires_at: expiresAt,
+        })
+      });
+      if (res.ok) {
+        setSuccessMsg('User exception deleted successfully.');
+        fetchGeoData();
+      } else {
+        const data = await res.json();
+        setErrorMsg(data.detail || 'Failed to delete exception.');
+      }
+    } catch (err) {
+      setErrorMsg(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSaveGeoException = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -1058,15 +964,10 @@ export default function App() {
     }
   };
 
-  async function fetchPlans(t = token) {
+  async function fetchPlans() {
     try {
-      const res = await fetch(`${API_BASE}/domains/plans`, {
-        headers: { 'Authorization': `Bearer ${t}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setPlans(data);
-      }
+      const data = await api.get('/domains/plans');
+      setPlans(data || []);
     } catch (err) {
       console.error(err);
     }
@@ -1100,301 +1001,6 @@ export default function App() {
     }
   };
 
-  const fetchRegistrations = async (t = token) => {
-    try {
-      const res = await fetch(`${API_BASE}/registrations`, {
-        headers: { 'Authorization': `Bearer ${t}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setRegistrations(data);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleCheckDomain = async (e) => {
-    e.preventDefault();
-    if (!searchDomainName) return;
-    setSearchLoading(true);
-    setSearchResult(null);
-    setCfResult(null);
-    setErrorMsg('');
-    try {
-      const res = await fetch(`${API_BASE}/registrations/check-domain`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ domain: searchDomainName })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setSearchResult(data);
-        if (data.exists) {
-          setErrorMsg(`Domain ${searchDomainName} already exists on public DNS or locally.`);
-        }
-      } else {
-        setErrorMsg(data.detail || 'Failed to check domain availability.');
-      }
-    } catch (err) {
-      setErrorMsg(err.message || 'Failed to check domain availability.');
-    } finally {
-      setSearchLoading(false);
-    }
-  };
-
-  const handleAddCloudflare = async (e) => {
-    e.preventDefault();
-    if (!searchDomainName || !cfCredentialId) return;
-    setCfLoading(true);
-    setCfResult(null);
-    setErrorMsg('');
-    try {
-      const res = await fetch(`${API_BASE}/registrations/add-cloudflare`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ 
-          domain: searchDomainName, 
-          credential_id: parseInt(cfCredentialId) 
-        })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setCfResult(data);
-        if (data.default_owner) {
-          setOwnerName(data.default_owner.owner_name || '');
-          setOwnerOrg(data.default_owner.owner_org || 'Civil Engineering Projects');
-          setOwnerAddress(data.default_owner.owner_address || '');
-          setOwnerCity(data.default_owner.owner_city || 'Harare');
-          setOwnerCountry(data.default_owner.owner_country || 'Zimbabwe');
-          setOwnerPhone(data.default_owner.owner_phone || '');
-          setOwnerFax(data.default_owner.owner_fax || 'None');
-          setOwnerEmail(data.default_owner.owner_email || '');
-        }
-      } else {
-        setErrorMsg(data.detail || 'Failed to retrieve Cloudflare zone configuration.');
-      }
-    } catch (err) {
-      setErrorMsg(err.message || 'Failed to retrieve Cloudflare zone configuration.');
-    } finally {
-      setCfLoading(false);
-    }
-  };
-
-  const handleSubmitRegistration = async (e) => {
-    e.preventDefault();
-    if (!searchDomainName || !cfResult) return;
-    setSubmitLoading(true);
-    setErrorMsg('');
-    setSuccessMsg('');
-    try {
-      const res = await fetch(`${API_BASE}/registrations/submit`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          domain_name: searchDomainName,
-          action: regAction,
-          cf_email: credentials.find(c => c.id === parseInt(cfCredentialId))?.email || null,
-          owner_name: ownerName,
-          owner_org: ownerOrg,
-          owner_address: ownerAddress,
-          owner_city: ownerCity,
-          owner_country: ownerCountry,
-          owner_phone: ownerPhone,
-          owner_fax: ownerFax,
-          owner_email: ownerEmail,
-          zone_id: cfResult.zone_id,
-          ns1_hostname: cfResult.ns1_hostname,
-          ns1_ip: cfResult.ns1_ip,
-          ns2_hostname: cfResult.ns2_hostname,
-          ns2_ip: cfResult.ns2_ip,
-          credential_id: parseInt(cfCredentialId)
-        })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setSuccessMsg(`ZISPA application email sent for ${searchDomainName}!`);
-        setSearchDomainName('');
-        setSearchResult(null);
-        setCfResult(null);
-        fetchRegistrations();
-      } else {
-        setErrorMsg(data.detail || 'Failed to submit registration.');
-      }
-    } catch (err) {
-      setErrorMsg(err.message || 'Failed to submit registration.');
-    } finally {
-      setSubmitLoading(false);
-    }
-  };
-
-  const handleResendRegistrationEmail = async (id) => {
-    setErrorMsg('');
-    setSuccessMsg('');
-    try {
-      const res = await fetch(`${API_BASE}/registrations/${id}/email-template`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setSuccessMsg(`ZISPA application email resent successfully!`);
-        fetchRegistrations();
-      } else {
-        setErrorMsg(data.detail || 'Failed to resend registration email.');
-      }
-    } catch (err) {
-      setErrorMsg(err.message || 'Failed to resend registration email.');
-    }
-  };
-
-  const handleDeleteRegistration = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this registration record?")) return;
-    setErrorMsg('');
-    setSuccessMsg('');
-    try {
-      const res = await fetch(`${API_BASE}/registrations/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        setSuccessMsg(`Registration record deleted.`);
-        fetchRegistrations();
-      } else {
-        const data = await res.json();
-        setErrorMsg(data.detail || 'Failed to delete registration.');
-      }
-    } catch (err) {
-      setErrorMsg(err.message || 'Failed to delete registration.');
-    }
-  };
-
-  const handlePollRegistration = async (id, silent = false) => {
-    if (!silent) {
-      setErrorMsg('');
-      setSuccessMsg('');
-    }
-    try {
-      const res = await fetch(`${API_BASE}/registrations/${id}/poll`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok) {
-        if (data.status === 'active') {
-          if (!silent) setSuccessMsg(`Domain ${data.domain_name} has resolved successfully and is now active!`);
-        } else {
-          if (!silent) setErrorMsg(`Domain ${data.domain_name} is still not resolving on public DNS (status: ${data.status}).`);
-        }
-        fetchRegistrations();
-      } else {
-        if (!silent) setErrorMsg(data.detail || 'Failed to check domain DNS resolution.');
-      }
-    } catch (err) {
-      if (!silent) setErrorMsg(err.message || 'Failed to check domain DNS resolution.');
-    }
-  };
-
-  const handlePollAllRegistrations = async () => {
-    setErrorMsg('');
-    setSuccessMsg('Started checking DNS resolution for all pending domains...');
-    const pending = registrations.filter(r => r.status !== 'active');
-    if (pending.length === 0) {
-      setSuccessMsg('No pending domain registrations found.');
-      return;
-    }
-    let activatedCount = 0;
-    for (const r of pending) {
-      try {
-        const res = await fetch(`${API_BASE}/registrations/${r.id}/poll`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.status === 'active') {
-            activatedCount++;
-          }
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    fetchRegistrations();
-    setSuccessMsg(`Completed checking DNS resolution. ${activatedCount} domain(s) activated!`);
-  };
-
-  const handleBulkSubmit = async (e) => {
-    e.preventDefault();
-    setErrorMsg('');
-    setSuccessMsg('');
-    setBulkResult(null);
-
-    const domains = bulkDomainsInput
-      .split('\n')
-      .map(d => d.trim().lower())
-      .filter(d => d.length > 0);
-
-    if (domains.length === 0) {
-      setErrorMsg('Please enter at least one domain name.');
-      return;
-    }
-
-    if (!cfCredentialId) {
-      setErrorMsg('Please select a Cloudflare credential.');
-      return;
-    }
-
-    setBulkLoading(true);
-
-    try {
-      const payload = {
-        domains,
-        credential_id: parseInt(cfCredentialId),
-        action: regAction,
-        owner_name: ownerName,
-        owner_org: ownerOrg,
-        owner_address: ownerAddress,
-        owner_city: ownerCity,
-        owner_country: ownerCountry,
-        owner_phone: ownerPhone,
-        owner_fax: ownerFax,
-        owner_email: ownerEmail
-      };
-
-      const res = await fetch(`${API_BASE}/registrations/bulk`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        setBulkResult(data);
-        setSuccessMsg(`Bulk processing complete! Success: ${data.success_count}, Failed: ${data.failed_count}.`);
-        setBulkDomainsInput('');
-        fetchRegistrations();
-      } else {
-        setErrorMsg(data.detail || 'Failed to process bulk registration.');
-      }
-    } catch (err) {
-      setErrorMsg(err.message || 'Failed to process bulk registration.');
-    } finally {
-      setBulkLoading(false);
-    }
-  };
 
   async function fetchDnsRecords(credId, zoneId, t = token) {
     setLoading(true);
@@ -1493,6 +1099,17 @@ export default function App() {
     }
   };
 
+  const handleEditDnsRecord = (record) => {
+    setEditingDnsRecord(record);
+    setDnsRecordType(record.type);
+    setDnsRecordName(record.name);
+    setDnsRecordContent(record.content);
+    setDnsRecordPriority(record.priority !== undefined && record.priority !== null ? String(record.priority) : '');
+    setDnsRecordProxied(record.proxied || false);
+    setDnsRecordTtl(String(record.ttl || 3600));
+    setShowEditDnsRecordModal(true);
+  };
+
   const handleDeleteDnsRecord = async (recordId) => {
     setErrorMsg('');
     setSuccessMsg('');
@@ -1528,69 +1145,7 @@ export default function App() {
     }
   };
 
-  const buildAuditLogParams = (filters = auditFilters) => {
-    const params = new URLSearchParams();
-    params.set('limit', String(filters.limit || 100));
-    ['q', 'admin_email', 'action', 'target', 'from', 'to'].forEach((key) => {
-      if (filters[key]) params.set(key, filters[key]);
-    });
-    return params;
-  };
 
-  const fetchAuditLogs = async (t = token, filters = auditFilters) => {
-    try {
-      const res = await fetch(`${API_BASE}/system/logs?${buildAuditLogParams(filters).toString()}`, {
-        headers: { 'Authorization': `Bearer ${t}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAuditLogs(data);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const resolveAuditPurgeDate = () => {
-    const d = new Date();
-    if (auditPurgePreset === 'custom') return auditPurgeDate;
-    if (auditPurgePreset === 'yesterday') d.setDate(d.getDate() - 1);
-    if (auditPurgePreset === 'last_7_days') d.setDate(d.getDate() - 7);
-    if (auditPurgePreset === 'last_30_days') d.setDate(d.getDate() - 30);
-    return d.toISOString().slice(0, 10);
-  };
-
-  const purgeAuditLogs = async () => {
-    const before = resolveAuditPurgeDate();
-    if (!before) {
-      setErrorMsg('Choose a purge cutoff date.');
-      return;
-    }
-    showConfirm({
-      title: 'Purge audit logs?',
-      message: `Delete audit log entries up to and including ${before}? This keeps a new purge audit record.`,
-      confirmLabel: 'Purge Logs',
-      tone: 'danger',
-      onConfirm: async () => {
-        try {
-          const res = await fetch(`${API_BASE}/system/logs?before=${encodeURIComponent(before)}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          const data = await res.json();
-          if (res.ok) {
-            setSuccessMsg(`Purged ${data.deleted} audit log entries through ${data.before}.`);
-            fetchAuditLogs();
-          } else {
-            setErrorMsg(data.detail || 'Failed to purge audit logs.');
-          }
-        } catch (err) {
-          console.error(err);
-          setErrorMsg('Failed to purge audit logs.');
-        }
-      }
-    });
-  };
 
   async function fetchDetailedServices(t = token) {
     setServicesLoading(true);
@@ -1806,174 +1361,9 @@ export default function App() {
     });
   };
 
-  const fetchConsoleUsers = async (t = token) => {
-    try {
-      const res = await fetch(`${API_BASE}/console-users`, {
-        headers: { 'Authorization': `Bearer ${t}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setConsoleUsers(data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch console users:", err);
-    }
-  };
 
-  const handleCreateConsoleUser = async (userData) => {
-    try {
-      const res = await fetch(`${API_BASE}/console-users`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(userData)
-      });
-      if (res.ok) {
-        setSuccessMsg("Console user created successfully.");
-        fetchConsoleUsers();
-        setShowAddConsoleUserModal(false);
-        fetchAuditLogs();
-      } else {
-        const errData = await res.json();
-        setErrorMsg(errData.detail || "Failed to create console user.");
-      }
-    } catch (err) {
-      console.error(err);
-      setErrorMsg("Failed to create console user due to server connection error.");
-    }
-  };
 
-  const handleUpdateConsoleUser = async (userId, updateData) => {
-    try {
-      const res = await fetch(`${API_BASE}/console-users/${userId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(updateData)
-      });
-      if (res.ok) {
-        setSuccessMsg("Console user updated successfully.");
-        fetchConsoleUsers();
-        handleCloseEditConsoleUserModal();
-        fetchAuditLogs();
-        
-        const updatedUser = await res.json();
-        if (user && updatedUser.id === user.id) {
-          setUser(prev => ({
-            ...prev,
-            email: updatedUser.email,
-            is_superuser: updatedUser.is_superuser
-          }));
-        }
-      } else {
-        const errData = await res.json();
-        setErrorMsg(errData.detail || "Failed to update console user.");
-      }
-    } catch (err) {
-      console.error(err);
-      setErrorMsg("Failed to update console user due to server connection error.");
-    }
-  };
 
-  const handleDeleteConsoleUser = async (userId) => {
-    try {
-      const res = await fetch(`${API_BASE}/console-users/${userId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        setSuccessMsg("Console user deleted successfully.");
-        fetchConsoleUsers();
-        fetchAuditLogs();
-      } else {
-        const errData = await res.json();
-        setErrorMsg(errData.detail || "Failed to delete console user.");
-      }
-    } catch (err) {
-      console.error(err);
-      setErrorMsg("Failed to delete console user due to server connection error.");
-    }
-  };
-
-  const handleCreatePlan = async (e) => {
-    if (e) e.preventDefault();
-    try {
-      const url = `${API_BASE}/domains/plans?name=${encodeURIComponent(planName)}&max_users=${planMaxUsers}&max_aliases=${planMaxAliases}&quota_mb=${planQuotaMb}&is_default=${planIsDefault}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (res.ok) {
-        setSuccessMsg("Plan created successfully!");
-        fetchPlans();
-        setShowAddPlanModal(false);
-        setPlanName('');
-        setPlanMaxUsers(10);
-        setPlanMaxAliases(20);
-        setPlanQuotaMb(1024);
-        setPlanIsDefault(false);
-      } else {
-        const errData = await res.json();
-        setErrorMsg(errData.detail || "Failed to create plan.");
-      }
-    } catch (err) {
-      console.error(err);
-      setErrorMsg("Failed to create plan due to server connection error.");
-    }
-  };
-
-  const handleUpdatePlan = async (e) => {
-    if (e) e.preventDefault();
-    if (!selectedPlan) return;
-    try {
-      const url = `${API_BASE}/domains/plans/${selectedPlan.id}?name=${encodeURIComponent(planName)}&max_users=${planMaxUsers}&max_aliases=${planMaxAliases}&quota_mb=${planQuotaMb}&is_default=${planIsDefault}`;
-      const res = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (res.ok) {
-        setSuccessMsg("Plan updated successfully!");
-        fetchPlans();
-        setShowEditPlanModal(false);
-        resetPlanForm();
-      } else {
-        const errData = await res.json();
-        setErrorMsg(errData.detail || "Failed to update plan.");
-      }
-    } catch (err) {
-      console.error(err);
-      setErrorMsg("Failed to update plan due to server connection error.");
-    }
-  };
-
-  const handleDeletePlan = async (planId) => {
-    try {
-      const res = await fetch(`${API_BASE}/domains/plans/${planId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (res.ok) {
-        setSuccessMsg("Plan deleted successfully!");
-        fetchPlans();
-      } else {
-        const errData = await res.json();
-        setErrorMsg(errData.detail || "Failed to delete plan.");
-      }
-    } catch (err) {
-      console.error(err);
-      setErrorMsg("Failed to delete plan due to server connection error.");
-    }
-  };
 
   async function handleSelectDomain(dom) {
     setSelectedDomain(dom);
@@ -3037,95 +2427,29 @@ export default function App() {
               {activeTab === 'logs' && hasPermission('system:logs') && (
                 <LogsPanel
                   hasPermission={hasPermission}
-                  auditPurgePreset={auditPurgePreset}
-                  setAuditPurgePreset={setAuditPurgePreset}
-                  auditPurgeDate={auditPurgeDate}
-                  setAuditPurgeDate={setAuditPurgeDate}
-                  purgeAuditLogs={purgeAuditLogs}
-                  auditFilters={auditFilters}
-                  setAuditFilters={setAuditFilters}
-                  fetchAuditLogs={fetchAuditLogs}
-                  auditLogs={auditLogs}
                 />
               )}
 
               {activeTab === 'users' && hasPermission('users:read') && (
                 <UsersPanel
-                  setShowAddConsoleUserModal={setShowAddConsoleUserModal}
-                  consoleUserSearch={consoleUserSearch}
-                  setConsoleUserSearch={setConsoleUserSearch}
-                  consoleUserRoleFilter={consoleUserRoleFilter}
-                  setConsoleUserRoleFilter={setConsoleUserRoleFilter}
-                  consoleUsers={consoleUsers}
                   user={user}
-                  handleUpdateConsoleUser={handleUpdateConsoleUser}
-                  handleEditConsoleUser={handleEditConsoleUser}
-                  setErrorMsg={setErrorMsg}
                   setConfirmModal={setConfirmModal}
-                  handleDeleteConsoleUser={handleDeleteConsoleUser}
+                  hasPermission={hasPermission}
                 />
               )}
 
               {activeTab === 'plans' && hasPermission('plans:read') && (
                 <PlansPanel
                   hasPermission={hasPermission}
-                  handleAddPlanClick={handleAddPlanClick}
-                  plans={plans}
-                  handleEditPlan={handleEditPlan}
                   setConfirmModal={setConfirmModal}
-                  handleDeletePlan={handleDeletePlan}
+                  onPlansChange={(updatedPlans) => setPlans(updatedPlans)}
                 />
               )}
 
               {activeTab === 'registrations' && hasPermission('registrations:read') && (
                 <RegistrationsPanel
-                  isBulkReg={isBulkReg}
-                  setIsBulkReg={setIsBulkReg}
-                  regAction={regAction}
-                  setRegAction={setRegAction}
-                  searchResult={searchResult}
-                  setSearchResult={setSearchResult}
-                  cfResult={cfResult}
-                  setCfResult={setCfResult}
-                  searchDomainName={searchDomainName}
-                  setSearchDomainName={setSearchDomainName}
-                  searchLoading={searchLoading}
-                  cfCredentialId={cfCredentialId}
-                  setCfCredentialId={setCfCredentialId}
-                  cfLoading={cfLoading}
                   credentials={credentials}
-                  ownerName={ownerName}
-                  setOwnerName={setOwnerName}
-                  ownerOrg={ownerOrg}
-                  setOwnerOrg={setOwnerOrg}
-                  ownerEmail={ownerEmail}
-                  setOwnerEmail={setOwnerEmail}
-                  ownerPhone={ownerPhone}
-                  setOwnerPhone={setOwnerPhone}
-                  ownerFax={ownerFax}
-                  setOwnerFax={setOwnerFax}
-                  ownerAddress={ownerAddress}
-                  setOwnerAddress={setOwnerAddress}
-                  ownerCity={ownerCity}
-                  setOwnerCity={setOwnerCity}
-                  ownerCountry={ownerCountry}
-                  setOwnerCountry={setOwnerCountry}
-                  submitLoading={submitLoading}
-                  bulkDomainsInput={bulkDomainsInput}
-                  setBulkDomainsInput={setBulkDomainsInput}
-                  bulkLoading={bulkLoading}
-                  bulkResult={bulkResult}
-                  regFilter={regFilter}
-                  setRegFilter={setRegFilter}
-                  registrations={registrations}
-                  handleCheckDomain={handleCheckDomain}
-                  handleAddCloudflare={handleAddCloudflare}
-                  handleSubmitRegistration={handleSubmitRegistration}
-                  handleBulkSubmit={handleBulkSubmit}
-                  handlePollAllRegistrations={handlePollAllRegistrations}
-                  handlePollRegistration={handlePollRegistration}
-                  handleResendRegistrationEmail={handleResendRegistrationEmail}
-                  handleDeleteRegistration={handleDeleteRegistration}
+                  hasPermission={hasPermission}
                 />
               )}
 
@@ -3176,6 +2500,7 @@ export default function App() {
                   geoExcExpires={geoExcExpires}
                   setGeoExcExpires={setGeoExcExpires}
                   handleSaveGeoException={handleSaveGeoException}
+              handleDeleteGeoException={handleDeleteGeoException}
                 />
               )}
             </>
@@ -3564,530 +2889,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Add Plan Modal */}
-      {showAddPlanModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-brand-plum border-2 border-slate-950 rounded-2xl p-6 shadow-[8px_8px_0_#151214] relative">
-            <h3 className="text-xl font-black text-white mb-2">Create New Mail Plan</h3>
-            <p className="text-xs text-slate-400 mb-6">Define resources and quotas for domains on this plan.</p>
-            <form onSubmit={handleCreatePlan} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Plan Name</label>
-                <input 
-                  type="text" 
-                  required
-                  placeholder="e.g. Starter, Premium"
-                  value={planName}
-                  onChange={(e) => setPlanName(e.target.value)}
-                  className="w-full px-4 py-3 bg-brand-plum-dark border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-mint"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Max Mailboxes</label>
-                  <input 
-                    type="number" 
-                    required
-                    min="1"
-                    value={planMaxUsers}
-                    onChange={(e) => setPlanMaxUsers(parseInt(e.target.value) || 1)}
-                    className="w-full px-4 py-3 bg-brand-plum-dark border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-mint"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Max Aliases</label>
-                  <input 
-                    type="number" 
-                    required
-                    min="1"
-                    value={planMaxAliases}
-                    onChange={(e) => setPlanMaxAliases(parseInt(e.target.value) || 1)}
-                    className="w-full px-4 py-3 bg-brand-plum-dark border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-mint"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Mailbox Quota (MB)</label>
-                <input 
-                  type="number" 
-                  required
-                  min="10"
-                  value={planQuotaMb}
-                  onChange={(e) => setPlanQuotaMb(parseInt(e.target.value) || 10)}
-                  className="w-full px-4 py-3 bg-brand-plum-dark border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-mint"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <input 
-                  type="checkbox" 
-                  id="addPlanIsDefault"
-                  checked={planIsDefault}
-                  onChange={(e) => setPlanIsDefault(e.target.checked)}
-                  className="w-4 h-4 rounded border-white/10 bg-brand-plum-dark text-brand-mint focus:ring-0 cursor-pointer"
-                />
-                <label htmlFor="addPlanIsDefault" className="text-xs text-slate-300 font-semibold cursor-pointer select-none">
-                  Set as Default Plan for new domains
-                </label>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button 
-                  type="button" 
-                  onClick={() => setShowAddPlanModal(false)}
-                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl font-bold transition-all cursor-pointer text-center text-sm"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="flex-1 py-3 bg-brand-mint text-slate-950 hover:bg-opacity-90 rounded-xl font-black border-2 border-slate-950 shadow-[4px_4px_0_#151214] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer text-center text-sm"
-                >
-                  Create Plan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showEditPlanModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-brand-plum border-2 border-slate-950 rounded-2xl p-6 shadow-[8px_8px_0_#151214] relative">
-            <h3 className="text-xl font-black text-white mb-2">Edit Mail Plan</h3>
-            <p className="text-xs text-slate-400 mb-6">Modify resource limits and defaults for this plan.</p>
-            <form onSubmit={handleUpdatePlan} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Plan Name</label>
-                <input 
-                  type="text" 
-                  required
-                  placeholder="e.g. Starter, Premium"
-                  value={planName}
-                  onChange={(e) => setPlanName(e.target.value)}
-                  className="w-full px-4 py-3 bg-brand-plum-dark border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-mint"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Max Mailboxes</label>
-                  <input 
-                    type="number" 
-                    required
-                    min="1"
-                    value={planMaxUsers}
-                    onChange={(e) => setPlanMaxUsers(parseInt(e.target.value) || 1)}
-                    className="w-full px-4 py-3 bg-brand-plum-dark border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-mint"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Max Aliases</label>
-                  <input 
-                    type="number" 
-                    required
-                    min="1"
-                    value={planMaxAliases}
-                    onChange={(e) => setPlanMaxAliases(parseInt(e.target.value) || 1)}
-                    className="w-full px-4 py-3 bg-brand-plum-dark border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-mint"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Mailbox Quota (MB)</label>
-                <input 
-                  type="number" 
-                  required
-                  min="10"
-                  value={planQuotaMb}
-                  onChange={(e) => setPlanQuotaMb(parseInt(e.target.value) || 10)}
-                  className="w-full px-4 py-3 bg-brand-plum-dark border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-mint"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <input 
-                  type="checkbox" 
-                  id="editPlanIsDefault"
-                  checked={planIsDefault}
-                  onChange={(e) => setPlanIsDefault(e.target.checked)}
-                  className="w-4 h-4 rounded border-white/10 bg-brand-plum-dark text-brand-mint focus:ring-0 cursor-pointer"
-                />
-                <label htmlFor="editPlanIsDefault" className="text-xs text-slate-300 font-semibold cursor-pointer select-none">
-                  Set as Default Plan for new domains
-                </label>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button 
-                  type="button" 
-                  onClick={() => { setShowEditPlanModal(false); resetPlanForm(); }}
-                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl font-bold transition-all cursor-pointer text-center text-sm"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="flex-1 py-3 bg-brand-mint text-slate-950 hover:bg-opacity-90 rounded-xl font-black border-2 border-slate-950 shadow-[4px_4px_0_#151214] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer text-center text-sm"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Add Console User Modal */}
-      {showAddConsoleUserModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-brand-plum border border-white/10 rounded-3xl p-8 w-full max-w-lg shadow-2xl relative space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-2xl font-bold text-white tracking-tight">Add Console Administrator</h3>
-                <p className="text-slate-400 text-xs mt-1">Register a new user to access the ZimPrices administrative console.</p>
-              </div>
-              <button 
-                onClick={() => setShowAddConsoleUserModal(false)}
-                className="p-1 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              handleCreateConsoleUser({
-                username: addConsoleUsername,
-                password: addConsolePassword,
-                is_superuser: addConsoleIsSuper,
-                roles: addConsoleRoles,
-                domains: addConsoleDomains
-              });
-            }} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Email Address</label>
-                <input 
-                  type="email" 
-                  required
-                  placeholder="admin@domain.com"
-                  value={addConsoleUsername}
-                  onChange={(e) => setAddConsoleUsername(e.target.value)}
-                  className="w-full px-4 py-3 bg-brand-plum-dark border border-white/10 rounded-xl text-white focus:outline-none focus:border-sky-400 text-sm font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Password</label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <input 
-                      type="text" 
-                      required
-                      readOnly
-                      placeholder="Click Generate to set password"
-                      value={addConsolePassword}
-                      className="w-full pl-4 pr-10 py-3 bg-brand-plum border border-white/10 rounded-xl text-white focus:outline-none focus:border-sky-400 text-sm font-medium font-mono cursor-not-allowed select-all"
-                    />
-                    {addConsolePassword && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(addConsolePassword);
-                          setSuccessMsg("Password copied to clipboard!");
-                        }}
-                        className="absolute right-3 top-3 text-slate-400 hover:text-white transition-colors cursor-pointer"
-                        title="Copy password to clipboard"
-                      >
-                        <Copy className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const pwd = generateSecurePassword();
-                      setAddConsolePassword(pwd);
-                      navigator.clipboard.writeText(pwd);
-                      setSuccessMsg("Generated secure password and copied to clipboard!");
-                    }}
-                    className="px-4 py-3 bg-sky-400 text-slate-950 font-bold border-2 border-slate-950 rounded-xl shadow-[2px_2px_0_#151214] hover:bg-sky-300 transition-all flex items-center gap-1.5 cursor-pointer active:translate-y-0.5 active:shadow-none text-xs"
-                    title="Generate secure password"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Generate
-                  </button>
-                </div>
-              </div>
-
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
-                <label className="flex items-center gap-2.5 text-sm text-slate-200 font-bold select-none cursor-pointer">
-                  <input 
-                    type="checkbox"
-                    checked={addConsoleIsSuper}
-                    onChange={(e) => setAddConsoleIsSuper(e.target.checked)}
-                    className="rounded w-4 h-4 accent-sky-400"
-                  />
-                  Is Superuser (Global Access)
-                </label>
-                <p className="text-[10px] text-slate-400 pl-6">
-                  Superusers bypass all Casbin checks and have access to all console settings, domains, credentials, and audit logs automatically.
-                </p>
-              </div>
-
-              {!addConsoleIsSuper && (
-                <>
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Casbin Roles</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {['domain_admin', 'support_admin', 'readonly_admin'].map(role => {
-                        const isChecked = addConsoleRoles.includes(role);
-                        return (
-                          <label key={role} className="flex items-center gap-2 p-2 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-300 font-medium select-none cursor-pointer hover:bg-white/10 animate-fade-in">
-                            <input 
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setAddConsoleRoles(prev => [...prev, role]);
-                                } else {
-                                  setAddConsoleRoles(prev => prev.filter(r => r !== role));
-                                }
-                              }}
-                              className="rounded w-3.5 h-3.5 accent-sky-400"
-                            />
-                            {role}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Assigned Domains Scope</label>
-                    <div className="max-h-36 overflow-y-auto border border-white/10 rounded-xl p-2 bg-white/2 space-y-1.5">
-                      {domains.map(d => {
-                        const isChecked = addConsoleDomains.includes(d.name);
-                        return (
-                          <label key={d.id} className="flex items-center gap-2 p-1 text-xs text-slate-300 font-mono select-none cursor-pointer hover:text-white">
-                            <input 
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setAddConsoleDomains(prev => [...prev, d.name]);
-                                } else {
-                                  setAddConsoleDomains(prev => prev.filter(name => name !== d.name));
-                                }
-                              }}
-                              className="rounded w-3.5 h-3.5 accent-sky-400"
-                            />
-                            {d.name}
-                          </label>
-                        );
-                      })}
-                      {domains.length === 0 && (
-                        <div className="text-[10px] text-slate-500 italic p-1">No domains provisioned yet.</div>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              <div className="flex gap-4 pt-4">
-                <button 
-                  type="button" 
-                  onClick={() => setShowAddConsoleUserModal(false)}
-                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-xl text-sm transition-all"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 py-3 bg-sky-400 hover:bg-sky-300 text-slate-950 font-bold rounded-xl text-sm transition-all cursor-pointer font-black"
-                >
-                  Create Account
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Console User Modal */}
-      {showEditConsoleUserModal && selectedConsoleUser && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-brand-plum border border-white/10 rounded-3xl p-8 w-full max-w-lg shadow-2xl relative space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-2xl font-bold text-white tracking-tight">Edit Console Permissions</h3>
-                <p className="text-slate-400 text-xs mt-1">Update roles, scopes, or password for <strong>{selectedConsoleUser.username}</strong>.</p>
-              </div>
-              <button 
-                onClick={handleCloseEditConsoleUserModal}
-                className="p-1 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const updateData = {
-                is_superuser: editConsoleIsSuper,
-                roles: editConsoleRoles,
-                domains: editConsoleDomains
-              };
-              if (editConsolePassword) {
-                updateData.password = editConsolePassword;
-              }
-              handleUpdateConsoleUser(selectedConsoleUser.id, updateData);
-            }} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Change Password (Optional)</label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <input 
-                      type="text" 
-                      readOnly
-                      placeholder="Leave blank or generate new password"
-                      value={editConsolePassword}
-                      className="w-full pl-4 pr-10 py-3 bg-brand-plum border border-white/10 rounded-xl text-white focus:outline-none focus:border-sky-400 text-sm font-medium font-mono cursor-not-allowed select-all"
-                    />
-                    {editConsolePassword && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(editConsolePassword);
-                          setSuccessMsg("Password copied to clipboard!");
-                        }}
-                        className="absolute right-3 top-3 text-slate-400 hover:text-white transition-colors cursor-pointer"
-                        title="Copy password to clipboard"
-                      >
-                        <Copy className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const pwd = generateSecurePassword();
-                      setEditConsolePassword(pwd);
-                      navigator.clipboard.writeText(pwd);
-                      setSuccessMsg("Generated secure password and copied to clipboard!");
-                    }}
-                    className="px-4 py-3 bg-sky-400 text-slate-950 font-bold border-2 border-slate-950 rounded-xl shadow-[2px_2px_0_#151214] hover:bg-sky-300 transition-all flex items-center gap-1.5 cursor-pointer active:translate-y-0.5 active:shadow-none text-xs"
-                    title="Generate secure password"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Generate
-                  </button>
-                </div>
-              </div>
-
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
-                <label className="flex items-center gap-2.5 text-sm text-slate-200 font-bold select-none cursor-pointer">
-                  <input 
-                    type="checkbox"
-                    checked={editConsoleIsSuper}
-                    disabled={selectedConsoleUser.id === user?.id}
-                    onChange={(e) => setEditConsoleIsSuper(e.target.checked)}
-                    className="rounded w-4 h-4 accent-sky-400"
-                  />
-                  Is Superuser (Global Access)
-                </label>
-                <p className="text-[10px] text-slate-400 pl-6">
-                  {selectedConsoleUser.id === user?.id 
-                    ? "You cannot demote yourself to prevent lockout."
-                    : "Superusers bypass all Casbin checks and have access to all console settings, domains, credentials, and audit logs automatically."}
-                </p>
-              </div>
-
-              {!editConsoleIsSuper && (
-                <>
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Casbin Roles</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {['domain_admin', 'support_admin', 'readonly_admin'].map(role => {
-                        const isChecked = editConsoleRoles.includes(role);
-                        return (
-                          <label key={role} className="flex items-center gap-2 p-2 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-300 font-medium select-none cursor-pointer hover:bg-white/10 animate-fade-in">
-                            <input 
-                              type="checkbox"
-                              checked={isChecked}
-                              disabled={selectedConsoleUser.id === user?.id}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setEditConsoleRoles(prev => [...prev, role]);
-                                } else {
-                                  setEditConsoleRoles(prev => prev.filter(r => r !== role));
-                                }
-                              }}
-                              className="rounded w-3.5 h-3.5 accent-sky-400"
-                            />
-                            {role}
-                          </label>
-                        );
-                      })}
-                    </div>
-                    {selectedConsoleUser.id === user?.id && (
-                      <p className="text-[10px] text-slate-500 italic mt-1">You cannot modify your own assigned roles directly.</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Assigned Domains Scope</label>
-                    <div className="max-h-36 overflow-y-auto border border-white/10 rounded-xl p-2 bg-white/2 space-y-1.5">
-                      {domains.map(d => {
-                        const isChecked = editConsoleDomains.includes(d.name);
-                        return (
-                          <label key={d.id} className="flex items-center gap-2 p-1 text-xs text-slate-300 font-mono select-none cursor-pointer hover:text-white">
-                            <input 
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setEditConsoleDomains(prev => [...prev, d.name]);
-                                } else {
-                                  setEditConsoleDomains(prev => prev.filter(name => name !== d.name));
-                                }
-                              }}
-                              className="rounded w-3.5 h-3.5 accent-sky-400"
-                            />
-                            {d.name}
-                          </label>
-                        );
-                      })}
-                      {domains.length === 0 && (
-                        <div className="text-[10px] text-slate-500 italic p-1">No domains provisioned yet.</div>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              <div className="flex gap-4 pt-4">
-                <button 
-                  type="button" 
-                  onClick={handleCloseEditConsoleUserModal}
-                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-xl text-sm transition-all"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 py-3 bg-sky-400 hover:bg-sky-300 text-slate-950 font-bold rounded-xl text-sm transition-all cursor-pointer font-black"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Add Mailbox User Modal */}
       {showAddUserModal && (
