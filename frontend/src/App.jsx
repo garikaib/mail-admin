@@ -248,6 +248,18 @@ export default function App() {
   }, [logsService]);
 
 
+  useEffect(() => {
+    console.log('[credentials] modal state', {
+      showAddCredModal,
+      showEditCredModal,
+      editingCredential,
+      editCredLabel,
+      editCredEmail,
+      editCredKey,
+    });
+  }, [showAddCredModal, showEditCredModal, editingCredential, editCredLabel, editCredEmail, editCredKey]);
+
+
 
   // URL Path Routing Effect
   useEffect(() => {
