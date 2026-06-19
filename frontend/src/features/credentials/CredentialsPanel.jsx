@@ -1,65 +1,61 @@
 import { useState } from 'react';
 import { 
-  ArrowLeft, Sliders, Mail, Plus, Edit, Trash2, Cloud, CloudOff, RefreshCw, Lock
+  ArrowLeft, Sliders, Mail, Plus, Edit, Edit2, Trash2, Cloud, CloudOff, RefreshCw, Lock, Search
 } from 'lucide-react';
 import { formatDateOnly } from '../../shared/lib/helpers';
 
+import useAppStore from '../../store/useAppStore';
+
 export function CredentialsPanel({
-  credentials,
-  loading,
-  cfZoneSearchQuery,
-  setCfZoneSearchQuery,
-  cfZoneStatusFilter,
-  setCfZoneStatusFilter,
-  cfAccountFilter,
-  setCfAccountFilter,
-  groupedZones,
+  // Functional props (remain unchanged)
   isMatched,
   getMatchedDomain,
-  handleScanZoneOwnership,
-  setNewCredEmail,
-  setShowAddCredModal,
-  setEditingCredential,
-  setEditCredLabel,
-  setEditCredEmail,
-  setEditCredKey,
-  setShowEditCredModal,
-  handleDeleteCredential,
-  setSelectedCredential,
-  setSelectedZone,
-  fetchDnsRecords,
-  setSelectedDomain,
-  setActiveTab,
-  handleSelectDomain,
-  setNewDomainName,
-  setSelectedCredId,
-  setSelectedPlanId,
-  setShowAddDomainModal,
-  // DNS records view props
-  selectedZone,
-  dnsRecordType,
-  setDnsRecordType,
-  dnsRecordName,
-  setDnsRecordName,
-  dnsRecordContent,
-  setDnsRecordContent,
-  dnsRecordPriority,
-  setDnsRecordPriority,
-  dnsRecordProxied,
-  setDnsRecordProxied,
-  dnsRecordTtl,
-  setDnsRecordTtl,
-  showAddDnsRecordModal,
-  setShowAddDnsRecordModal,
-  zoneDnsRecords,
-  handleDeleteDnsRecord,
-  handleEditDnsRecord,
-  showConfirm,
-  hasPermission,
-  // Add dialogs
-  setEditingDnsRecord,
-  setShowEditDnsRecordModal,
+  handleScanZoneOwnership = () => {},
+  fetchDnsRecords = () => {},
+  handleSelectDomain = () => {},
+  handleDeleteCredential = () => {},
+  handleDeleteDnsRecord = () => {},
+  handleEditDnsRecord = () => {},
+  showConfirm = ({ onConfirm } = {}) => { if (typeof onConfirm === 'function') onConfirm(); },
+  hasPermission = () => false,
 }) {
+  // UI state now sourced from Zustand store
+  const {
+    // Data
+    credentials, setCredentials,
+    loading, setLoading,
+    // Filters & UI controls
+    cfZoneSearchQuery, setCfZoneSearchQuery,
+    cfZoneStatusFilter, setCfZoneStatusFilter,
+    cfAccountFilter, setCfAccountFilter,
+    groupedZones = {},
+    // Credential UI flags
+    setNewCredEmail,
+    showAddCredModal, setShowAddCredModal,
+    editingCredential, setEditingCredential,
+    editCredLabel, setEditCredLabel,
+    editCredEmail, setEditCredEmail,
+    editCredKey, setEditCredKey,
+    showEditCredModal, setShowEditCredModal,
+    // Deletion & selection helpers
+    setSelectedCredential, setSelectedZone,
+    setSelectedDomain, setActiveTab,
+    setNewDomainName, setSelectedCredId, setSelectedPlanId,
+    setShowAddDomainModal,
+    // DNS record UI state
+    selectedZone,
+    dnsRecordType, setDnsRecordType,
+    dnsRecordName, setDnsRecordName,
+    dnsRecordContent, setDnsRecordContent,
+    dnsRecordPriority, setDnsRecordPriority,
+    dnsRecordProxied, setDnsRecordProxied,
+    dnsRecordTtl, setDnsRecordTtl,
+    showAddDnsRecordModal, setShowAddDnsRecordModal,
+    zoneDnsRecords,
+    // DNS editing helpers
+    setEditingDnsRecord, setShowEditDnsRecordModal,
+  } = useAppStore();
+
   if (selectedZone) {
     return (
       <div className="space-y-6">
@@ -293,11 +289,11 @@ export function CredentialsPanel({
           <p className="text-slate-400 text-sm mt-1">Manage global api credentials used to securely generate tokens for DNS updates.</p>
         </div>
         <div className="flex gap-3">
-          <button onClick={handleScanZoneOwnership} disabled={loading} className="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-sm px-5 py-2.5 rounded-full flex items-center gap-2 transition-all cursor-pointer disabled:opacity-60">
+          <button type="button" onClick={handleScanZoneOwnership} disabled={loading} className="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-sm px-5 py-2.5 rounded-full flex items-center gap-2 transition-all cursor-pointer disabled:opacity-60">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Scan Zones
           </button>
-          <button onClick={() => { setNewCredEmail('gbdzoma@gmail.com'); setShowAddCredModal(true); }} className="bg-brand-yellow hover:bg-brand-yellow-hover text-brand-plum font-bold text-sm px-5 py-2.5 rounded-full flex items-center gap-2 transition-all cursor-pointer border-none">
+          <button type="button" onClick={() => { setNewCredEmail('gbdzoma@gmail.com'); setShowAddCredModal(true); }} className="bg-brand-yellow hover:bg-brand-yellow-hover text-brand-plum font-bold text-sm px-5 py-2.5 rounded-full flex items-center gap-2 transition-all cursor-pointer border-none">
             <Plus className="w-4 h-4 stroke-[3px]" />
             Add Credential
           </button>
@@ -323,10 +319,10 @@ export function CredentialsPanel({
                   <td className="p-4 text-xs text-slate-400">{formatDateOnly(c.created_at)}</td>
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => { setEditingCredential(c); setEditCredLabel(c.label); setEditCredEmail(c.email); setEditCredKey(''); setShowEditCredModal(true); }} className="text-brand-mint hover:text-white p-2 rounded-lg hover:bg-brand-mint/10 transition-colors bg-transparent border-none cursor-pointer" title="Edit Credential / Rotate Key">
+                      <button type="button" onClick={() => { setEditingCredential(c); setEditCredLabel(c.label); setEditCredEmail(c.email); setEditCredKey(''); setShowEditCredModal(true); }} className="text-brand-mint hover:text-white p-2 rounded-lg hover:bg-brand-mint/10 transition-colors bg-transparent border-none cursor-pointer" title="Edit Credential / Rotate Key">
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      <button onClick={() => handleDeleteCredential(c.id)} className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/10 transition-colors bg-transparent border-none cursor-pointer" title="Delete Credential">
+                      <button type="button" onClick={() => handleDeleteCredential(c.id)} className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/10 transition-colors bg-transparent border-none cursor-pointer" title="Delete Credential">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -363,9 +359,9 @@ export function CredentialsPanel({
           </div>
         </div>
 
-        {Object.keys(groupedZones).length > 0 ? (
-          Object.keys(groupedZones).map(accountKey => {
-            const zonesInGroup = groupedZones[accountKey];
+        {Object.keys(groupedZones || {}).length > 0 ? (
+          Object.keys(groupedZones || {}).map(accountKey => {
+            const zonesInGroup = (groupedZones || {})[accountKey];
             return (
               <div key={accountKey} className="glassmorphism-card rounded-2xl p-6 border border-white/5 space-y-4">
                 <div className="flex items-center justify-between border-b border-white/5 pb-3">
