@@ -247,6 +247,10 @@ export default function App() {
     }
   }, [logsService]);
 
+  useEffect(() => {
+    console.log('[aliases] modal state', { editingAlias, editAliasDest });
+  }, [editingAlias, editAliasDest]);
+
 
   useEffect(() => {
     console.log('[credentials] modal state', {
@@ -2182,8 +2186,14 @@ export default function App() {
               onDeleteMailbox={handleDeleteMailbox}
               onDeleteAlias={handleDeleteAlias}
               onEditAlias={(alias) => {
+                console.log('[aliases] edit click', alias);
                 setEditingAlias(alias);
                 setEditAliasDest(alias.destination);
+                console.log('[aliases] edit state requested', {
+                  id: alias.id,
+                  source: alias.source,
+                  destination: alias.destination,
+                });
               }}
               plans={plans}
               hasPermission={hasPermission}
