@@ -66,6 +66,14 @@
 
 ## 4. Operational Procedures
 
+### Safe Rspamd Map Updates
+- GitHub-hosted map files are allowed to update automatically, but only for heuristic scoring.
+- Keep hard reject logic on the remote server in Rspamd/Postfix policy files, not inside the map scores.
+- If an upstream map update raises false positives, lower or neutralize the symbol weight locally before the next deploy.
+- Run `rspamadm configtest` after syncing any config change and before restarting Rspamd.
+- Watch for newly added high-score rules in upstream map files; treat them as quarantine/junk signals unless explicitly reviewed.
+
+
 ### Adding a New Domain
 1.  Run the setup script: `python3 scripts/setup/setup_mail_{domain}.py`.
 2.  Configure DNS (Cloudflare): `python3 scripts/setup/configure_dns_{domain}.py`.

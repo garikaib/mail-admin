@@ -48,6 +48,7 @@ export function GeoAuthPanel({
   geoExcExpires,
   setGeoExcExpires,
   handleSaveGeoException,
+  handleDeleteGeoException,
 }) {
   return (
     <div className="space-y-8 animate-fade-in">
@@ -428,11 +429,22 @@ export function GeoAuthPanel({
               <div className="space-y-3">
                 {geoExceptions.map(exc => (
                   <div key={exc.username + '-' + exc.service} className="p-4 bg-brand-plum-dark border border-white/10 rounded-xl space-y-2">
-                    <div className="flex justify-between items-start">
-                      <span className="font-semibold text-slate-200 text-sm">{exc.username}</span>
-                      <span className="text-[9px] uppercase tracking-wider font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 text-indigo-300">
-                        {exc.service}
-                      </span>
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <span className="font-semibold text-slate-200 text-sm break-all">{exc.username}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[9px] uppercase tracking-wider font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 text-indigo-300">
+                          {exc.service}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteGeoException(exc.username, exc.service, exc.allowed_countries, exc.expires_at)}
+                          className="px-2 py-1 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all cursor-pointer text-[10px] font-bold"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                     <div className="text-xs text-slate-400">
                       <strong>Allowed Countries:</strong> {exc.allowed_countries}

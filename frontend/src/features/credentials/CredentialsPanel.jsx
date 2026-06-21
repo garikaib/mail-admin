@@ -319,19 +319,7 @@ export function CredentialsPanel({
                   <td className="p-4 text-xs text-slate-400">{formatDateOnly(c.created_at)}</td>
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button type="button" onClick={() => {
-                        console.log('[credentials] edit click', c);
-                        setEditingCredential(c);
-                        setEditCredLabel(c.label);
-                        setEditCredEmail(c.email);
-                        setEditCredKey('');
-                        setShowEditCredModal(true);
-                        console.log('[credentials] edit state requested', {
-                          id: c.id,
-                          label: c.label,
-                          email: c.email,
-                        });
-                      }} className="text-brand-mint hover:text-white p-2 rounded-lg hover:bg-brand-mint/10 transition-colors bg-transparent border-none cursor-pointer" title="Edit Credential / Rotate Key">
+                      <button type="button" onClick={() => { setEditingCredential(c); setEditCredLabel(c.label); setEditCredEmail(c.email); setEditCredKey(''); setShowEditCredModal(true); }} className="text-brand-mint hover:text-white p-2 rounded-lg hover:bg-brand-mint/10 transition-colors bg-transparent border-none cursor-pointer" title="Edit Credential / Rotate Key">
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button type="button" onClick={() => handleDeleteCredential(c.id)} className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/10 transition-colors bg-transparent border-none cursor-pointer" title="Delete Credential">

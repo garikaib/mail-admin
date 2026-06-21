@@ -2186,14 +2186,8 @@ export default function App() {
               onDeleteMailbox={handleDeleteMailbox}
               onDeleteAlias={handleDeleteAlias}
               onEditAlias={(alias) => {
-                console.log('[aliases] edit click', alias);
                 setEditingAlias(alias);
                 setEditAliasDest(alias.destination);
-                console.log('[aliases] edit state requested', {
-                  id: alias.id,
-                  source: alias.source,
-                  destination: alias.destination,
-                });
               }}
               plans={plans}
               hasPermission={hasPermission}

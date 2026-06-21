@@ -375,6 +375,35 @@ def create_user_exception(payload: UserExceptionSchema, db: Session = Depends(ge
     db.commit()
     return {"status": "success", "message": "User geolocation exception updated successfully"}
 
+@router.delete("/exceptions")
+def delete_user_exception(payload: UserExceptionSchema, db: Session = Depends(get_db), current_user: AuthUser = Depends(get_current_user)):
+    if payload.service == "ssh":
+        require_permission(current_user, db, "geo_ssh:override_user_policy")
+    elif payload.service == "mail":
+        require_permission(current_user, db, "geo_mail:override_user_policy")
+    elif payload.service == "all":
+        require_permission(current_user, db, "geo_mail:override_user_policy")
+        require_permission(current_user, db, "geo_ssh:override_user_policy")
+    else:
+        raise HTTPException(status_code=400, detail="Invalid service type")
+
+    exc = db.query(GeoUserException).filter(
+        GeoUserException.username == payload.username,
+        GeoUserException.service == payload.service
+    ).first()
+    if not exc:
+        raise HTTPException(status_code=404, detail="User exception not found")
+
+    db.delete(exc)
+    db.add(AdminLog(
+        admin_email=current_user.username,
+        action="DELETE_GEO_EXCEPTION",
+        target=payload.username,
+        details=f"Service: {payload.service}, Countries: {payload.allowed_countries}, Expires: {payload.expires_at}"
+    ))
+    db.commit()
+    return {"status": "success", "message": "User geolocation exception deleted successfully"}
+
 @router.get("/bans", response_model=List[BanResponseSchema])
 def get_active_bans(db: Session = Depends(get_db), current_user: AuthUser = Depends(get_current_user)):
     has_mail = can(current_user, db, "geo_mail:clear_bans")

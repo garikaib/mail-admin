@@ -1,57 +1,279 @@
-import { Shield, RefreshCw, AlertTriangle, Sparkles, CheckCircle2, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Shield, RefreshCw, AlertTriangle, Sparkles, CheckCircle2, Trash2, Check } from 'lucide-react';
 import { formatDateTime } from '../../shared/lib/helpers';
+import { api } from '../../shared/api/client';
 
-export function RegistrationsPanel({
-  isBulkReg,
-  setIsBulkReg,
-  regAction,
-  setRegAction,
-  searchResult,
-  setSearchResult,
-  cfResult,
-  setCfResult,
-  searchDomainName,
-  setSearchDomainName,
-  searchLoading,
-  cfCredentialId,
-  setCfCredentialId,
-  cfLoading,
-  credentials,
-  ownerName,
-  setOwnerName,
-  ownerOrg,
-  setOwnerOrg,
-  ownerEmail,
-  setOwnerEmail,
-  ownerPhone,
-  setOwnerPhone,
-  ownerFax,
-  setOwnerFax,
-  ownerAddress,
-  setOwnerAddress,
-  ownerCity,
-  setOwnerCity,
-  ownerCountry,
-  setOwnerCountry,
-  submitLoading,
-  bulkDomainsInput,
-  setBulkDomainsInput,
-  bulkLoading,
-  bulkResult,
-  regFilter,
-  setRegFilter,
-    registrations,
-    handleCheckDomain,
-    handleAddCloudflare,
-    handleSubmitRegistration,
-    handleBulkSubmit,
-    handlePollAllRegistrations,
-    handlePollRegistration,
-    handleResendRegistrationEmail,
-    handleDeleteRegistration,
-}) {
+export function RegistrationsPanel({ credentials, hasPermission }) {
+  // State variables for Registrations Panel
+  const [isBulkReg, setIsBulkReg] = useState(false);
+  const [regAction, setRegAction] = useState('N');
+  const [searchResult, setSearchResult] = useState(null);
+  const [cfResult, setCfResult] = useState(null);
+  const [searchDomainName, setSearchDomainName] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [cfCredentialId, setCfCredentialId] = useState('');
+  const [cfLoading, setCfLoading] = useState(false);
+  const [ownerName, setOwnerName] = useState('');
+  const [ownerOrg, setOwnerOrg] = useState('Civil Engineering Projects');
+  const [ownerEmail, setOwnerEmail] = useState('');
+  const [ownerPhone, setOwnerPhone] = useState('');
+  const [ownerFax, setOwnerFax] = useState('None');
+  const [ownerAddress, setOwnerAddress] = useState('');
+  const [ownerCity, setOwnerCity] = useState('Harare');
+  const [ownerCountry, setOwnerCountry] = useState('Zimbabwe');
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [bulkDomainsInput, setBulkDomainsInput] = useState('');
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkResult, setBulkResult] = useState(null);
+  const [regFilter, setRegFilter] = useState('all');
+  const [registrations, setRegistrations] = useState([]);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const fetchRegistrations = async () => {
+    try {
+      const data = await api.get('/registrations');
+      setRegistrations(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchRegistrations();
+  }, []);
+
+  // Auto-clear messages
+  useEffect(() => {
+    if (successMsg || errorMsg) {
+      const timer = setTimeout(() => {
+        setSuccessMsg('');
+        setErrorMsg('');
+      }, 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMsg, errorMsg]);
+
+  const handleCheckDomain = async (e) => {
+    e.preventDefault();
+    if (!searchDomainName) return;
+    setSearchLoading(true);
+    setSearchResult(null);
+    setCfResult(null);
+    setErrorMsg('');
+    try {
+      const data = await api.post('/registrations/check-domain', { domain: searchDomainName });
+      setSearchResult(data);
+      if (data.exists) {
+        setErrorMsg(`Domain ${searchDomainName} already exists on public DNS or locally.`);
+      }
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to check domain availability.');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleAddCloudflare = async (e) => {
+    e.preventDefault();
+    if (!searchDomainName || !cfCredentialId) return;
+    setCfLoading(true);
+    setCfResult(null);
+    setErrorMsg('');
+    try {
+      const data = await api.post('/registrations/add-cloudflare', { 
+        domain: searchDomainName, 
+        credential_id: parseInt(cfCredentialId) 
+      });
+      setCfResult(data);
+      if (data.default_owner) {
+        setOwnerName(data.default_owner.owner_name || '');
+        setOwnerOrg(data.default_owner.owner_org || 'Civil Engineering Projects');
+        setOwnerAddress(data.default_owner.owner_address || '');
+        setOwnerCity(data.default_owner.owner_city || 'Harare');
+        setOwnerCountry(data.default_owner.owner_country || 'Zimbabwe');
+        setOwnerPhone(data.default_owner.owner_phone || '');
+        setOwnerFax(data.default_owner.owner_fax || 'None');
+        setOwnerEmail(data.default_owner.owner_email || '');
+      }
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to retrieve Cloudflare zone configuration.');
+    } finally {
+      setCfLoading(false);
+    }
+  };
+
+  const handleSubmitRegistration = async (e) => {
+    e.preventDefault();
+    if (!searchDomainName || !cfResult) return;
+    setSubmitLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const payload = {
+        domain_name: searchDomainName,
+        action: regAction,
+        cf_email: credentials.find(c => c.id === parseInt(cfCredentialId))?.email || null,
+        owner_name: ownerName,
+        owner_org: ownerOrg,
+        owner_address: ownerAddress,
+        owner_city: ownerCity,
+        owner_country: ownerCountry,
+        owner_phone: ownerPhone,
+        owner_fax: ownerFax,
+        owner_email: ownerEmail,
+        zone_id: cfResult.zone_id,
+        ns1_hostname: cfResult.ns1_hostname,
+        ns1_ip: cfResult.ns1_ip,
+        ns2_hostname: cfResult.ns2_hostname,
+        ns2_ip: cfResult.ns2_ip,
+        credential_id: parseInt(cfCredentialId)
+      };
+      await api.post('/registrations/submit', payload);
+      setSuccessMsg(`ZISPA application email sent for ${searchDomainName}!`);
+      setSearchDomainName('');
+      setSearchResult(null);
+      setCfResult(null);
+      fetchRegistrations();
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to submit registration.');
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const handleResendRegistrationEmail = async (id) => {
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      await api.post(`/registrations/${id}/email-template`);
+      setSuccessMsg(`ZISPA application email resent successfully!`);
+      fetchRegistrations();
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to resend registration email.');
+    }
+  };
+
+  const handleDeleteRegistration = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this registration record?")) return;
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      await api.delete(`/registrations/${id}`);
+      setSuccessMsg(`Registration record deleted.`);
+      fetchRegistrations();
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to delete registration.');
+    }
+  };
+
+  const handlePollRegistration = async (id, silent = false) => {
+    if (!silent) {
+      setErrorMsg('');
+      setSuccessMsg('');
+    }
+    try {
+      const data = await api.post(`/registrations/${id}/poll`);
+      if (data.status === 'active') {
+        if (!silent) setSuccessMsg(`Domain ${data.domain_name} has resolved successfully and is now active!`);
+      } else {
+        if (!silent) setErrorMsg(`Domain ${data.domain_name} is still not resolving on public DNS (status: ${data.status}).`);
+      }
+      fetchRegistrations();
+    } catch (err) {
+      if (!silent) setErrorMsg(err.message || 'Failed to check domain DNS resolution.');
+    }
+  };
+
+  const handlePollAllRegistrations = async () => {
+    setErrorMsg('');
+    setSuccessMsg('Started checking DNS resolution for all pending domains...');
+    const pending = registrations.filter(r => r.status !== 'active');
+    if (pending.length === 0) {
+      setSuccessMsg('No pending domain registrations found.');
+      return;
+    }
+    let activatedCount = 0;
+    for (const r of pending) {
+      try {
+        const data = await api.post(`/registrations/${r.id}/poll`);
+        if (data.status === 'active') {
+          activatedCount++;
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    fetchRegistrations();
+    setSuccessMsg(`Completed checking DNS resolution. ${activatedCount} domain(s) activated!`);
+  };
+
+  const handleBulkSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+    setBulkResult(null);
+
+    const domains = bulkDomainsInput
+      .split('\n')
+      .map(d => d.trim().toLowerCase())
+      .filter(d => d.length > 0);
+
+    if (domains.length === 0) {
+      setErrorMsg('Please enter at least one domain name.');
+      return;
+    }
+
+    if (!cfCredentialId) {
+      setErrorMsg('Please select a Cloudflare credential.');
+      return;
+    }
+
+    setBulkLoading(true);
+
+    try {
+      const payload = {
+        domains,
+        credential_id: parseInt(cfCredentialId),
+        action: regAction,
+        owner_name: ownerName,
+        owner_org: ownerOrg,
+        owner_address: ownerAddress,
+        owner_city: ownerCity,
+        owner_country: ownerCountry,
+        owner_phone: ownerPhone,
+        owner_fax: ownerFax,
+        owner_email: ownerEmail
+      };
+
+      const data = await api.post('/registrations/bulk', payload);
+      setBulkResult(data);
+      setSuccessMsg(`Bulk processing complete! Success: ${data.success_count}, Failed: ${data.failed_count}.`);
+      setBulkDomainsInput('');
+      fetchRegistrations();
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to process bulk registration.');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
+      {/* Banner Messages */}
+      {successMsg && (
+        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 px-6 py-3 rounded-xl text-sm font-semibold flex items-center gap-2 animate-fade-in shrink-0">
+          <Check className="w-4 h-4 shrink-0" />
+          {successMsg}
+        </div>
+      )}
+      {errorMsg && (
+        <div className="bg-red-500/10 border border-red-500/30 text-red-300 px-6 py-3 rounded-xl text-sm font-semibold flex items-center gap-2 animate-fade-in shrink-0">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          {errorMsg}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
