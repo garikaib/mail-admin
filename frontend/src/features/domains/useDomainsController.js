@@ -559,6 +559,11 @@ export function useDomainsController() {
     setSelectedCredId,
     selectedPlanId,
     setSelectedPlanId,
+    provisionLogs,
+    showProvisioningModal,
+    setShowProvisioningModal,
+    trackedProvisioningDomain,
+    setTrackedProvisioningDomain,
 
     // Local form/UI states
     loading,

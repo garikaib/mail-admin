@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { 
-  ArrowLeft, Sliders, Mail, Plus, Edit, Edit2, Trash2, Cloud, CloudOff, RefreshCw, Lock, Search
+  ArrowLeft, Sliders, Mail, Plus, Edit, Edit2, Trash2, Cloud, CloudOff, RefreshCw, Lock, Search, Globe
 } from 'lucide-react';
 import { formatDateOnly } from '../../shared/lib/helpers';
 

@@ -51,6 +51,11 @@ export default function DomainsScreen() {
     setSelectedCredId,
     selectedPlanId,
     setSelectedPlanId,
+    provisionLogs,
+    showProvisioningModal,
+    setShowProvisioningModal,
+    trackedProvisioningDomain,
+    setTrackedProvisioningDomain,
 
     // Local controller states
     loading,
