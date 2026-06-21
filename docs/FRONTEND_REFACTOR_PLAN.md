@@ -1,166 +1,58 @@
-# Frontend Refactor Plan
+# Frontend Refactor Plan v4 (Vercel React Best Practices Clean Aligned)
 
-## Goal
-Refactor the React admin frontend so it aligns with the React best-practices skill:
-- reduce unnecessary rerenders
-- shrink the initial JS bundle
-- isolate feature state
-- keep the shell easy to reason about
+This plan integrates the **Vercel React Best Practices Guidelines** (focusing on `rerender-` optimization, `bundle-` optimization, and `client-` data fetching patterns) to eliminate the remaining gaps in our React frontend.
 
-## Current Problems
+---
 
-### 1. App shell owns too much
-`frontend/src/App.jsx` currently imports and coordinates most feature areas directly. It also subscribes to a very large portion of the Zustand store in a single component.
+## 🔍 Audit & Alignment Checklist (Vercel Skill Alignment)
 
-Impact:
-- feature updates can rerender the whole shell
-- state ownership is blurry
-- the file is hard to extend safely
+Below is an audit of our current frontend codebase against the Vercel React Best Practices rules:
 
-### 2. Bundle is too eager
-All major screens are loaded up front.
+| Rule Category | Vercel Rule | Status in Code | Gaps & Solutions |
+| :--- | :--- | :--- | :--- |
+| **Re-render Optimization** | `Defer State Reads to Usage Point` | ⚠️ Partially Aligned | Many modal states (e.g., `showAddGeoExceptionModal`, `showAddUserModal`) and form text states are defined in `App.jsx`, causing full-shell rerenders on every keystroke/toggle. **Solution:** Move all feature-specific states to local controllers (`useServerHealthController`, `useGeoAuthController`, etc.). |
+| **Re-render Optimization** | `Split Combined Hook Computations` | ❌ Not Aligned | The Zustand store is a single monolith (`useAppStore.js`). Although modular stores exist, features still rely on `useAppStore.js`. **Solution:** Migrate remaining screens to the modular stores and delete `useAppStore.js`. |
+| **Re-render Optimization** | `Calculate Derived State During Rendering` | ⚠️ Partially Aligned | Some derived permissions/tab states are stored in state. **Solution:** Compute permissions and paths dynamically on render using `usePermissions` and window location. |
+| **Bundle Size Optimization** | `Conditional Module Loading` | ⚠️ Partially Aligned | Screens are lazy-loaded, but root-level dependencies, heavy helpers (like Nginx configuration editors), and state orchestration pull eagerly into `App.jsx`. **Solution:** Move all screen-specific imports, handlers, and modals inside the lazy-loaded screen directories. |
+| **Client-Side Data Fetching** | `Client-Side Data Fetching (Lazy Fetching)` | ❌ Not Aligned | All data (domains, plans, geo-settings, health, logs, etc.) is fetched eagerly inside `App.jsx` on app mount, even if the user never navigates to those tabs. **Solution:** Move fetch calls into screen controllers (`useEffect` triggered when screens mount). |
+| **Advanced Component Patterns** | `Props Drilling` | ❌ Not Aligned | Screens accept up to 50+ props from `App.jsx` (callbacks, modal states, setters). This is brittle and difficult to maintain. **Solution:** Connect screen controllers directly to domain stores, removing all drilled props from `App.jsx`. |
 
-Impact:
-- larger initial bundle
-- slower time to interactive
-- tabs the user never opens still ship on first load
+---
 
-### 3. Global store is too coarse
-The shared store is convenient, but broad subscriptions make invalidation too wide.
+## 🛠️ Step-by-Step Refactoring Execution Order
 
-Impact:
-- unrelated state changes can rerender unrelated screens
-- form state and domain state can leak into each other
+### Step 1: Split the Monolithic Zustand Store
+Remove all usages of the deprecated monolithic `useAppStore.js` and delete it entirely. Ensure all domain-driven stores inside `frontend/src/store/` are fully populated and consumed:
+1. `useAuthStore.js`: Sourced from credentials, token, current user object, and authentication API calls.
+2. `useUiStore.js`: Controls global layout things like `activeTab`, mobile menus, toast notifications (`successMsg`/`errorMsg`), and the global `confirmModal` configuration.
+3. `useDomainsStore.js`: Holds domains data, plan templates, mailboxes, and aliases.
+4. `useCredentialsStore.js`: Holds Cloudflare API credentials and Zone lookup caches.
+5. `useGeoAuthStore.js`: Coordinates mail/SSH geolocation setting blocks, bans, and custom exception records.
+6. `useSystemHealthStore.js`: Tracks server CPU/RAM status, service lists, and configs.
 
-### 4. Modal and form state is spread around
-Temporary form fields and modal flags are mixed with feature data.
+### Step 2: Establish Self-Contained Feature Hooks (Screen Controllers)
+Create React custom hooks that wrap all states, queries, and mutations for each feature screen:
+- **`useDomainsController`**: `showAddDomainModal`, `fetchDomains()`, `handleDeleteDomain()`, mailbox & alias operations.
+- **`useCredentialsController`**: DNS edits, zone scans, credential creation/deletion.
+- **`useGeoAuthController`**: Global rule saves, exception add/delete, SSH logs retrieval.
+- **`useServerHealthController`**: System monitors, service start/stops, Nginx configuration edits.
+- **`useUsersController`**: Admin accounts management.
+- **`usePlansController`**: Mail quota templates.
+- **`useRegistrationsController`**: Domain registration state.
+- **`useLogsController`**: Audit logs polling.
 
-Impact:
-- harder to debug
-- easier to create stale or duplicated state
-- more accidental rerenders
+### Step 3: De-Clutter and Thin the App Shell (`App.jsx`)
+Strip `App.jsx` down to less than ~400 lines:
+- Remove all feature state declarations (`useState` / `useEffect`).
+- Eliminate all API mutation wrappers.
+- Keep only authentication bootstrap checks (`/auth/me`), global layout frame (header, navigation panel), toast alert components, and the single global confirm dialog.
 
-## Refactor Strategy
+### Step 4: Revamp lazy-loaded Screen Entries
+Update lazy screen targets (e.g., `DomainsScreen.jsx`, `CredentialsScreen.jsx`, `GeoAuthScreen.jsx`, `ServerHealthScreen.jsx`, etc.) so they consume their respective controller hook directly. No props will be drilled from `App.jsx`.
 
-### Phase 1: Split shell from feature screens
-Move each dashboard tab into a screen container:
-- `DomainsScreen`
-- `CredentialsScreen`
-- `UsersScreen`
-- `PlansScreen`
-- `RegistrationsScreen`
-- `GeoAuthScreen`
-- `LogsScreen`
-- `ServerHealthScreen`
+---
 
-Keep `App.jsx` focused on:
-- auth/bootstrap
-- route selection
-- sidebar/header
-- global host components like confirm modal and toast messages
-
-### Phase 2: Lazy-load feature screens
-Use `React.lazy` and `Suspense` so only the active screen loads.
-
-Priority order:
-- Logs
-- Geo Auth
-- Users
-- Registrations
-- Plans
-- Server Health
-- Domains/Credentials as needed
-
-Add small loading fallbacks per screen so the UI stays responsive.
-
-### Phase 3: Narrow store subscriptions
-Replace broad `useAppStore()` reads with selectors.
-
-Rules:
-- each screen should subscribe only to the state it needs
-- use shallow comparisons where useful
-- do not read unrelated store data in the shell
-
-Expected result:
-- changing credentials should not rerender logs
-- typing in one form should not redraw unrelated panels
-
-### Phase 4: Move transient form state local
-Keep temporary edit/create form inputs inside the screen or modal component that uses them.
-
-Examples:
-- credential add/edit form fields
-- alias edit destination
-- plan form inputs
-- geo-auth form inputs
-
-Only keep truly shared state in the global store.
-
-### Phase 5: Standardize modal handling
-Make modal presentation uniform:
-- confirm modal
-- delete modal
-- form modal
-
-Modal components should receive data and callbacks, not own unrelated feature state.
-
-### Phase 6: Simplify derived state
-Compute derived values during render when cheap, or memoize only when the cost is real.
-
-Examples:
-- selected tab data
-- filtered lists
-- permission-derived flags
-
-Avoid syncing derived values into separate state unless there is a real user-editing need.
-
-### Phase 7: Introduce feature controllers where needed
-For complex screens, extract controller hooks:
-- `useCredentialsController`
-- `useDomainsController`
-- `useUsersController`
-- `useGeoAuthController`
-
-These hooks should own:
-- fetch logic
-- mutation logic
-- screen-specific side effects
-
-### Phase 8: Split the store if selectors are not enough
-If the store still feels too broad after selector cleanup, split it by domain:
-- `useAuthStore`
-- `useCredentialsStore`
-- `useDomainsStore`
-- `useUsersStore`
-- `useLogsStore`
-- `useGeoAuthStore`
-
-Keep a small shared store only for:
-- active tab
-- global confirmations
-- global notifications
-- app-level loading/error banners
-
-## Implementation Order
-
-1. Extract screen containers from `App.jsx`.
-2. Lazy-load the screens.
-3. Convert store reads to selectors.
-4. Move form state local.
-5. Normalize modals.
-6. Measure bundle and rerender behavior.
-7. Split the store further only if needed.
-
-## Success Criteria
-
-- `App.jsx` is a shell, not a feature monolith
-- initial bundle is smaller
-- tab changes do not rerender unrelated screens
-- modal behavior is predictable
-- the codebase is easier to extend without regressions
-
-## Notes
-
-- Keep existing behavior stable during the refactor.
-- Prefer incremental changes with build verification after each phase.
-- Do not reintroduce temporary console logging in production code.
+## 📈 Verification Checks
+- Verify local bundle outputs via `npm run build` to confirm chunks remain code-split.
+- Check state isolation: updating a draft Cloudflare API Key or typing in a modal must not trigger rendering cycles on other tabs.
+- Ensure production build deploys cleanly via the deploy script.
