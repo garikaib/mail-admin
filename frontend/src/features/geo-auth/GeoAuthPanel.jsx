@@ -55,10 +55,10 @@ export function GeoAuthPanel({
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Title & Sub-tabs */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-white/5 pb-4">
+      <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
-            <Shield className="w-7 h-7 text-indigo-400" />
+            <Shield className="w-7 h-7 text-brand-purple" />
             Geolocation Auth & SSH Firewall
           </h2>
           <p className="text-sm text-slate-400 mt-1">
@@ -66,14 +66,14 @@ export function GeoAuthPanel({
           </p>
         </div>
 
-        <div className="flex shrink-0 space-x-2 bg-black/20 p-1 rounded-xl border border-white/5 overflow-x-auto max-w-full no-scrollbar">
+        <div className="flex flex-wrap gap-2 border-b border-white/5 pb-2">
           <button
             type="button"
             onClick={() => setGeoSubTab('mail')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
               geoSubTab === 'mail'
-                ? 'bg-indigo-500 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-brand-purple/10 text-brand-purple border border-brand-purple/20'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
             <Mail className="w-3.5 h-3.5" />
@@ -82,10 +82,10 @@ export function GeoAuthPanel({
           <button
             type="button"
             onClick={() => setGeoSubTab('ssh')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
               geoSubTab === 'ssh'
-                ? 'bg-indigo-500 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-brand-purple/10 text-brand-purple border border-brand-purple/20'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
             <Lock className="w-3.5 h-3.5" />
@@ -94,10 +94,10 @@ export function GeoAuthPanel({
           <button
             type="button"
             onClick={() => setGeoSubTab('bans-exceptions')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
               geoSubTab === 'bans-exceptions'
-                ? 'bg-indigo-500 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-brand-purple/10 text-brand-purple border border-brand-purple/20'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
             <Shield className="w-3.5 h-3.5" />
@@ -106,10 +106,10 @@ export function GeoAuthPanel({
           <button
             type="button"
             onClick={() => setGeoSubTab('regions')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
               geoSubTab === 'regions'
-                ? 'bg-indigo-500 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-brand-purple/10 text-brand-purple border border-brand-purple/20'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
             <Globe className="w-3.5 h-3.5" />
