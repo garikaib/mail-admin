@@ -17,18 +17,6 @@ const useAppStore = create((set) => ({
   // Cloudflare credentials
   credentials: [],
   setCredentials: (credentials) => set({ credentials }),
-  showAddCredModal: false,
-  setShowAddCredModal: (showAddCredModal) => set({ showAddCredModal }),
-  editingCredential: null,
-  setEditingCredential: (editingCredential) => set({ editingCredential }),
-  editCredLabel: '',
-  setEditCredLabel: (editCredLabel) => set({ editCredLabel }),
-  editCredEmail: '',
-  setEditCredEmail: (editCredEmail) => set({ editCredEmail }),
-  editCredKey: '',
-  setEditCredKey: (editCredKey) => set({ editCredKey }),
-  showEditCredModal: false,
-  setShowEditCredModal: (showEditCredModal) => set({ showEditCredModal }),
 
   // System health information
   systemHealth: null,
@@ -102,9 +90,7 @@ const useAppStore = create((set) => ({
   selectedPlanId: '',
   setSelectedPlanId: (selectedPlanId) => set({ selectedPlanId }),
 
-  // Miscellaneous UI/helpers
-  newCredEmail: '',
-  setNewCredEmail: (email) => set({ newCredEmail: email }),
+
   copied: false,
   setCopied: (copied) => set({ copied }),
 }));

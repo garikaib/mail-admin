@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import { formatDateOnly } from '../../shared/lib/helpers';
 
-import useAppStore from '../../store/useAppStore';
+
 
 export function CredentialsPanel({
   // Functional props (remain unchanged)
@@ -18,44 +18,59 @@ export function CredentialsPanel({
   handleEditDnsRecord = () => {},
   showConfirm = ({ onConfirm } = {}) => { if (typeof onConfirm === 'function') onConfirm(); },
   hasPermission = () => false,
-}) {
-  // UI state now sourced from Zustand store
-  const {
-    // Data
-    credentials, setCredentials,
-    loading, setLoading,
-    // Filters & UI controls
-    cfZoneSearchQuery, setCfZoneSearchQuery,
-    cfZoneStatusFilter, setCfZoneStatusFilter,
-    cfAccountFilter, setCfAccountFilter,
-    groupedZones = {},
-    // Credential UI flags
-    setNewCredEmail,
-    showAddCredModal, setShowAddCredModal,
-    editingCredential, setEditingCredential,
-    editCredLabel, setEditCredLabel,
-    editCredEmail, setEditCredEmail,
-    editCredKey, setEditCredKey,
-    showEditCredModal, setShowEditCredModal,
-    // Deletion & selection helpers
-    setSelectedCredential, setSelectedZone,
-    setSelectedDomain, setActiveTab,
-    setNewDomainName, setSelectedCredId, setSelectedPlanId,
-    setShowAddDomainModal,
-    // DNS record UI state
-    selectedZone,
-    dnsRecordType, setDnsRecordType,
-    dnsRecordName, setDnsRecordName,
-    dnsRecordContent, setDnsRecordContent,
-    dnsRecordPriority, setDnsRecordPriority,
-    dnsRecordProxied, setDnsRecordProxied,
-    dnsRecordTtl, setDnsRecordTtl,
-    showAddDnsRecordModal, setShowAddDnsRecordModal,
-    zoneDnsRecords,
-    // DNS editing helpers
-    setEditingDnsRecord, setShowEditDnsRecordModal,
-  } = useAppStore();
+  groupedZones = {},
 
+  // Props previously sourced from Zustand store
+  credentials,
+  setCredentials,
+  loading,
+  setLoading,
+  cfZoneSearchQuery,
+  setCfZoneSearchQuery,
+  cfZoneStatusFilter,
+  setCfZoneStatusFilter,
+  cfAccountFilter,
+  setCfAccountFilter,
+  setNewCredEmail,
+  showAddCredModal,
+  setShowAddCredModal,
+  editingCredential,
+  setEditingCredential,
+  editCredLabel,
+  setEditCredLabel,
+  editCredEmail,
+  setEditCredEmail,
+  editCredKey,
+  setEditCredKey,
+  showEditCredModal,
+  setShowEditCredModal,
+  setSelectedCredential,
+  setSelectedZone,
+  setSelectedDomain,
+  setActiveTab,
+  setNewDomainName,
+  setSelectedCredId,
+  setSelectedPlanId,
+  setShowAddDomainModal,
+  selectedZone,
+  dnsRecordType,
+  setDnsRecordType,
+  dnsRecordName,
+  setDnsRecordName,
+  dnsRecordContent,
+  setDnsRecordContent,
+  dnsRecordPriority,
+  setDnsRecordPriority,
+  dnsRecordProxied,
+  setDnsRecordProxied,
+  dnsRecordTtl,
+  setDnsRecordTtl,
+  showAddDnsRecordModal,
+  setShowAddDnsRecordModal,
+  zoneDnsRecords,
+  setEditingDnsRecord,
+  setShowEditDnsRecordModal
+}) {
   if (selectedZone) {
     return (
       <div className="space-y-6">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { 
   Server, Shield, Key, Globe, Mail, Link as LinkIcon, LogOut, 
   Search, Plus, Check, AlertTriangle, RefreshCw, Trash2, Edit2, 
@@ -18,15 +18,23 @@ import {
   formatTimeOnly, generateSecurePassword 
 } from './shared/lib/helpers';
 
-import { CredentialsPanel } from './features/credentials/CredentialsPanel';
 import { api } from './shared/api/client';
-import { ServerHealthPanel } from './features/server-health/ServerHealthPanel';
-import { LogsPanel } from './features/logs/LogsPanel';
-import { UsersPanel } from './features/users/UsersPanel';
-import { PlansPanel } from './features/plans/PlansPanel';
-import { RegistrationsPanel } from './features/registrations/RegistrationsPanel';
-import { GeoAuthPanel } from './features/geo-auth/GeoAuthPanel';
 import useAppStore from './store/useAppStore';
+
+const DomainsScreen = lazy(() => import('./features/domains/DomainsScreen'));
+const CredentialsScreen = lazy(() => import('./features/credentials/CredentialsScreen'));
+const ServerHealthScreen = lazy(() => import('./features/server-health/ServerHealthScreen'));
+const LogsScreen = lazy(() => import('./features/logs/LogsScreen'));
+const UsersScreen = lazy(() => import('./features/users/UsersScreen'));
+const PlansScreen = lazy(() => import('./features/plans/PlansScreen'));
+const RegistrationsScreen = lazy(() => import('./features/registrations/RegistrationsScreen'));
+const GeoAuthScreen = lazy(() => import('./features/geo-auth/GeoAuthScreen'));
+
+const ScreenFallback = () => (
+  <div className="flex items-center justify-center h-64">
+    <RefreshCw className="w-8 h-8 text-brand-mint animate-spin" />
+  </div>
+);
 
 const DASHBOARD_ROUTES = [
   {
@@ -107,32 +115,43 @@ export default function App() {
   const [selectedDomain, setSelectedDomain] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  const {
-  domains, setDomains,
-  plans, setPlans,
-  credentials, setCredentials,
-  systemHealth, setSystemHealth,
-  mailboxes, setMailboxes,
-  aliases, setAliases,
-  showAddCredModal, setShowAddCredModal,
-  showEditCredModal, setShowEditCredModal,
-  editingCredential, setEditingCredential,
-  editCredLabel, setEditCredLabel,
-  editCredEmail, setEditCredEmail,
-  editCredKey, setEditCredKey,
-  provisionLogs, setProvisionLogs,
-  pollingDomain, setPollingDomain,
-  trackedProvisioningDomain, setTrackedProvisioningDomain,
-  showProvisioningModal, setShowProvisioningModal,
-  loading, setLoading,
-  errorMsg, setErrorMsg,
-  successMsg, setSuccessMsg,
-  showAddDomainModal, setShowAddDomainModal,
-  showDnsReviewModal, setShowDnsReviewModal,
-  dnsReviewData, setDnsReviewData,
-  editedDnsRecords, setEditedDnsRecords,
-  copied, setCopied,
-} = useAppStore();
+  const domains = useAppStore(state => state.domains);
+  const setDomains = useAppStore(state => state.setDomains);
+  const plans = useAppStore(state => state.plans);
+  const setPlans = useAppStore(state => state.setPlans);
+  const credentials = useAppStore(state => state.credentials);
+  const setCredentials = useAppStore(state => state.setCredentials);
+  const systemHealth = useAppStore(state => state.systemHealth);
+  const setSystemHealth = useAppStore(state => state.setSystemHealth);
+  const mailboxes = useAppStore(state => state.mailboxes);
+  const setMailboxes = useAppStore(state => state.setMailboxes);
+  const aliases = useAppStore(state => state.aliases);
+  const setAliases = useAppStore(state => state.setAliases);
+
+  const provisionLogs = useAppStore(state => state.provisionLogs);
+  const setProvisionLogs = useAppStore(state => state.setProvisionLogs);
+  const pollingDomain = useAppStore(state => state.pollingDomain);
+  const setPollingDomain = useAppStore(state => state.setPollingDomain);
+  const trackedProvisioningDomain = useAppStore(state => state.trackedProvisioningDomain);
+  const setTrackedProvisioningDomain = useAppStore(state => state.setTrackedProvisioningDomain);
+  const showProvisioningModal = useAppStore(state => state.showProvisioningModal);
+  const setShowProvisioningModal = useAppStore(state => state.setShowProvisioningModal);
+  const loading = useAppStore(state => state.loading);
+  const setLoading = useAppStore(state => state.setLoading);
+  const errorMsg = useAppStore(state => state.errorMsg);
+  const setErrorMsg = useAppStore(state => state.setErrorMsg);
+  const successMsg = useAppStore(state => state.successMsg);
+  const setSuccessMsg = useAppStore(state => state.setSuccessMsg);
+  const showAddDomainModal = useAppStore(state => state.showAddDomainModal);
+  const setShowAddDomainModal = useAppStore(state => state.setShowAddDomainModal);
+  const showDnsReviewModal = useAppStore(state => state.showDnsReviewModal);
+  const setShowDnsReviewModal = useAppStore(state => state.setShowDnsReviewModal);
+  const dnsReviewData = useAppStore(state => state.dnsReviewData);
+  const setDnsReviewData = useAppStore(state => state.setDnsReviewData);
+  const editedDnsRecords = useAppStore(state => state.editedDnsRecords);
+  const setEditedDnsRecords = useAppStore(state => state.setEditedDnsRecords);
+  const copied = useAppStore(state => state.copied);
+  const setCopied = useAppStore(state => state.setCopied);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [showAddAliasModal, setShowAddAliasModal] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
@@ -236,6 +255,12 @@ export default function App() {
   const [newCredLabel, setNewCredLabel] = useState('');
   const [newCredEmail, setNewCredEmail] = useState('');
   const [newCredKey, setNewCredKey] = useState('');
+  const [showAddCredModal, setShowAddCredModal] = useState(false);
+  const [showEditCredModal, setShowEditCredModal] = useState(false);
+  const [editingCredential, setEditingCredential] = useState(null);
+  const [editCredLabel, setEditCredLabel] = useState('');
+  const [editCredEmail, setEditCredEmail] = useState('');
+  const [editCredKey, setEditCredKey] = useState('');
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
   const [pwdModalError, setPwdModalError] = useState('');
   const [pwdModalSuccess, setPwdModalSuccess] = useState('');
@@ -2153,182 +2178,59 @@ export default function App() {
         )}
 
         <div className="p-8 max-w-6xl w-full mx-auto space-y-8 flex-1 relative z-10">
-          {selectedDomain ? (
-            /* Selected Domain Detail Page */
-            <DomainDetailPage 
-              domain={selectedDomain} 
-              mailboxes={mailboxes}
-              aliases={aliases}
-              provisionLogs={provisionLogs}
-              onBack={() => {
-                setSelectedDomain(null);
-                window.history.pushState(null, '', '/domains');
-              }}
-              onAddUser={() => setShowAddUserModal(true)}
-              onAddAlias={() => setShowAddAliasModal(true)}
-              onResetPassword={handleResetMailboxPwd}
-              onDeleteMailbox={handleDeleteMailbox}
-              onDeleteAlias={handleDeleteAlias}
-              onEditAlias={(alias) => {
-                setEditingAlias(alias);
-                setEditAliasDest(alias.destination);
-              }}
-              plans={plans}
-              hasPermission={hasPermission}
-              onDeleteDomain={() => handleDeleteDomain(selectedDomain.id, selectedDomain.name)}
-              refresh={() => handleSelectDomain(selectedDomain)}
-            />
-          ) : (
-            <>
-              {activeTab === 'unauthorized' ? (
-                <div className="space-y-6 max-w-xl mx-auto pt-12">
-                  <div className="bg-red-500/10 border-2 border-slate-950 text-red-400 p-8 rounded-2xl shadow-[6px_6px_0_#151214] text-center space-y-5">
-                    <div className="w-16 h-16 mx-auto rounded-full bg-red-500/20 border-2 border-slate-950 flex items-center justify-center shadow-[3px_3px_0_#151214]">
-                      <Shield className="w-8 h-8 text-red-400 stroke-[2.5px]" />
-                    </div>
-                    <div className="space-y-2">
-                      <h2 className="text-2xl font-black uppercase tracking-tight text-white animate-pulse">Access Pending</h2>
-                      <p className="text-sm text-slate-300 leading-relaxed">
-                        Your account (<strong>{user?.email}</strong>) is authenticated, but no console roles or permissions have been assigned to you.
-                      </p>
-                    </div>
-                    <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-400 font-mono">
-                      Please contact system administrator to seed roles & permissions.
-                    </div>
-                    <button 
-                      onClick={handleLogout}
-                      className="bg-white text-slate-950 border-2 border-slate-950 font-black px-5 py-2.5 rounded-xl shadow-[4px_4px_0_#000] active:translate-y-0.5 active:shadow-none hover:bg-slate-100 transition-all text-xs cursor-pointer"
-                    >
-                      Logout & Try Another Account
-                    </button>
+          <Suspense fallback={<ScreenFallback />}>
+            {activeTab === 'unauthorized' ? (
+              <div className="space-y-6 max-w-xl mx-auto pt-12">
+                <div className="bg-red-500/10 border-2 border-slate-950 text-red-400 p-8 rounded-2xl shadow-[6px_6px_0_#151214] text-center space-y-5">
+                  <div className="w-16 h-16 mx-auto rounded-full bg-red-500/20 border-2 border-slate-950 flex items-center justify-center shadow-[3px_3px_0_#151214]">
+                    <Shield className="w-8 h-8 text-red-400 stroke-[2.5px]" />
                   </div>
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-black uppercase tracking-tight text-white animate-pulse">Access Pending</h2>
+                    <p className="text-sm text-slate-300 leading-relaxed">
+                      Your account (<strong>{user?.email}</strong>) is authenticated, but no console roles or permissions have been assigned to you.
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-400 font-mono">
+                    Please contact system administrator to seed roles & permissions.
+                  </div>
+                  <button 
+                    onClick={handleLogout}
+                    className="bg-white text-slate-950 border-2 border-slate-950 font-black px-5 py-2.5 rounded-xl shadow-[4px_4px_0_#000] active:translate-y-0.5 active:shadow-none hover:bg-slate-100 transition-all text-xs cursor-pointer"
+                  >
+                    Logout & Try Another Account
+                  </button>
                 </div>
-              ) : (
-                <>
-                  {activeTab === 'domains' && hasPermission('domains:read') && (
-                <div className="space-y-6">
-                  {/* Dashboard Header */}
-                  <div className="flex justify-between items-end">
-                    <div>
-                      <h2 className="text-3xl font-extrabold text-white tracking-tight">Domains Directory</h2>
-                      <p className="text-slate-400 text-sm mt-1">Manage email mailboxes, aliases, and system forwarding.</p>
-                    </div>
-                    {hasPermission('domains:provision') && (
-                      <button 
-                        onClick={() => setShowAddDomainModal(true)}
-                        className="bg-brand-mint hover:bg-brand-mint-hover text-brand-plum font-bold text-sm px-5 py-2.5 rounded-full flex items-center gap-2 transition-all shadow-lg hover:shadow-brand-mint/20 cursor-pointer"
-                      >
-                        <Plus className="w-4 h-4 stroke-[3px]" />
-                        New Domain
-                      </button>
-                    )}
-                  </div>
+              </div>
+            ) : (
+              <>
+                {activeTab === 'domains' && hasPermission('domains:read') && (
+                  <DomainsScreen
+                    hasPermission={hasPermission}
+                    setShowAddUserModal={setShowAddUserModal}
+                    setShowAddAliasModal={setShowAddAliasModal}
+                    handleResetMailboxPwd={handleResetMailboxPwd}
+                    handleDeleteMailbox={handleDeleteMailbox}
+                    handleDeleteAlias={handleDeleteAlias}
+                    setEditingAlias={setEditingAlias}
+                    setEditAliasDest={setEditAliasDest}
+                    handleDeleteDomain={handleDeleteDomain}
+                    handleSelectDomain={handleSelectDomain}
+                  />
+                )}
 
-                  {/* Filters / Search */}
-                  <div className="flex flex-col sm:flex-row gap-4 bg-brand-plum/45 p-4 rounded-2xl border border-white/5">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input 
-                        type="text" 
-                        placeholder="Search domains..." 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-11 pr-4 py-2.5 bg-brand-plum-dark border border-white/10 rounded-xl text-white placeholder-slate-400 text-sm focus:outline-none focus:border-brand-mint focus:ring-1 focus:ring-brand-mint"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <select 
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="px-4 py-2.5 bg-brand-plum-dark border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-brand-mint"
-                      >
-                        <option value="all">All Statuses</option>
-                        <option value="active">Active Only</option>
-                        <option value="suspended">Suspended Only</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Domains Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredDomains.length > 0 ? (
-                      filteredDomains.map(d => (
-                        <div 
-                          key={d.id} 
-                          onClick={() => handleSelectDomain(d)}
-                          className="glassmorphism-card rounded-2xl p-6 hover:border-brand-mint/30 transition-all cursor-pointer group flex flex-col justify-between"
-                        >
-                          <div className="space-y-4">
-                            <div className="flex justify-between items-start">
-                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                d.is_active ? 'bg-brand-mint/10 text-brand-mint border border-brand-mint/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                              }`}>
-                                {d.is_active ? 'Active' : 'Suspended'}
-                              </span>
-                              <span className="text-xs text-slate-400 font-semibold px-2 py-0.5 rounded-md bg-white/5">
-                                {d.plan_name}
-                              </span>
-                            </div>
-                            <div>
-                              <h3 className="text-xl font-bold text-white group-hover:text-brand-mint transition-colors">{d.name}</h3>
-                              <p className="text-xs text-slate-400 mt-1">SMTP: mail.zimprices.co.zw</p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between border-t border-white/5 pt-4 mt-6">
-                            <div className="flex gap-4 text-xs text-slate-400">
-                              <span>Max Mailboxes: <strong>{d.max_users}</strong></span>
-                              <span>Aliases: <strong>{d.max_aliases}</strong></span>
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors" />
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="col-span-full py-12 text-center bg-brand-plum/20 border border-white/5 rounded-2xl">
-                        <Globe className="w-8 h-8 text-slate-600 mx-auto mb-3" />
-                        <p className="text-slate-400 font-medium">No domains found.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'credentials' && hasPermission('credentials:read') && (() => {
-                const isMatched = (zoneName) => domains.some(d => d.name === zoneName);
-                const getMatchedDomain = (zoneName) => domains.find(d => d.name === zoneName);
-                
-                // Grouping and Filtering logic
-                const groupedZones = {};
-                const filteredZones = cloudflareZones.filter(z => {
-                  const matchesSearch = z.name.toLowerCase().includes(cfZoneSearchQuery.toLowerCase());
-                  const matchesLocal = isMatched(z.name);
-                  const matchesStatus = cfZoneStatusFilter === 'all' || 
-                    (cfZoneStatusFilter === 'matched' && matchesLocal) ||
-                    (cfZoneStatusFilter === 'unmatched' && !matchesLocal);
-                  const matchesAccount = cfAccountFilter === 'all' || cfAccountFilter === String(z.credential_id);
-                  return matchesSearch && matchesStatus && matchesAccount;
-                });
-
-                filteredZones.forEach(z => {
-                  const key = z.cf_email || 'Shared Account';
-                  if (!groupedZones[key]) groupedZones[key] = [];
-                  groupedZones[key].push(z);
-                });
-
-                return (
-                  <CredentialsPanel
-                    credentials={credentials}
-                    loading={loading}
+                {activeTab === 'credentials' && hasPermission('credentials:read') && (
+                  <CredentialsScreen
+                    domains={domains}
+                    cloudflareZones={cloudflareZones}
                     cfZoneSearchQuery={cfZoneSearchQuery}
                     setCfZoneSearchQuery={setCfZoneSearchQuery}
                     cfZoneStatusFilter={cfZoneStatusFilter}
                     setCfZoneStatusFilter={setCfZoneStatusFilter}
                     cfAccountFilter={cfAccountFilter}
                     setCfAccountFilter={setCfAccountFilter}
-                    groupedZones={groupedZones}
-                    isMatched={isMatched}
-                    getMatchedDomain={getMatchedDomain}
+                    credentials={credentials}
+                    loading={loading}
                     handleScanZoneOwnership={handleScanZoneOwnership}
                     setNewCredEmail={setNewCredEmail}
                     setShowAddCredModal={setShowAddCredModal}
@@ -2371,142 +2273,140 @@ export default function App() {
                     setEditingDnsRecord={setEditingDnsRecord}
                     setShowEditDnsRecordModal={setShowEditDnsRecordModal}
                   />
-                );
-              })()}
+                )}
 
-              {activeTab === 'health' && hasPermission('system:health') && systemHealth && (
-                <ServerHealthPanel
-                  hasPermission={hasPermission}
-                  systemHealth={systemHealth}
-                  serverControlTab={serverControlTab}
-                  setServerControlTab={setServerControlTab}
-                  fetchDetailedServices={fetchDetailedServices}
-                  fetchConfigFiles={fetchConfigFiles}
-                  detailedServices={detailedServices}
-                  fetchSystemHealth={fetchSystemHealth}
-                  servicesLoading={servicesLoading}
-                  serviceActionLoading={serviceActionLoading}
-                  handleServiceControl={handleServiceControl}
-                  setLogsService={setLogsService}
-                  logsService={logsService}
-                  serviceRailExpanded={serviceRailExpanded}
-                  setServiceRailExpanded={setServiceRailExpanded}
-                  logsSince={logsSince}
-                  setLogsSince={setLogsSince}
-                  logsPriority={logsPriority}
-                  setLogsPriority={setLogsPriority}
-                  logsLimit={logsLimit}
-                  setLogsLimit={setLogsLimit}
-                  logsInterval={logsInterval}
-                  setLogsInterval={setLogsInterval}
-                  logsQuery={logsQuery}
-                  setLogsQuery={setLogsQuery}
-                  autoRefreshLogs={autoRefreshLogs}
-                  setAutoRefreshLogs={setAutoRefreshLogs}
-                  fetchServiceLogs={fetchServiceLogs}
-                  serviceLogsLoading={serviceLogsLoading}
-                  serviceLogs={serviceLogs}
-                  configFiles={configFiles}
-                  selectedConfigId={selectedConfigId}
-                  setSelectedConfigId={setSelectedConfigId}
-                  isSavingConfig={isSavingConfig}
-                  handleToggleNginxSite={handleToggleNginxSite}
-                  configIsDirty={configIsDirty}
-                  configLoading={configLoading}
-                  fetchConfigContent={fetchConfigContent}
-                  configContent={configContent}
-                  setConfigContent={setConfigContent}
-                  setConfigIsDirty={setConfigIsDirty}
-                  isValidatingConfig={isValidatingConfig}
-                  handleValidateConfig={handleValidateConfig}
-                  handleSaveConfig={handleSaveConfig}
-                  configValidation={configValidation}
-                />
-              )}
+                {activeTab === 'health' && hasPermission('system:health') && systemHealth && (
+                  <ServerHealthScreen
+                    hasPermission={hasPermission}
+                    systemHealth={systemHealth}
+                    serverControlTab={serverControlTab}
+                    setServerControlTab={setServerControlTab}
+                    fetchDetailedServices={fetchDetailedServices}
+                    fetchConfigFiles={fetchConfigFiles}
+                    detailedServices={detailedServices}
+                    fetchSystemHealth={fetchSystemHealth}
+                    servicesLoading={servicesLoading}
+                    serviceActionLoading={serviceActionLoading}
+                    handleServiceControl={handleServiceControl}
+                    setLogsService={setLogsService}
+                    logsService={logsService}
+                    serviceRailExpanded={serviceRailExpanded}
+                    setServiceRailExpanded={setServiceRailExpanded}
+                    logsSince={logsSince}
+                    setLogsSince={setLogsSince}
+                    logsPriority={logsPriority}
+                    setLogsPriority={setLogsPriority}
+                    logsLimit={logsLimit}
+                    setLogsLimit={setLogsLimit}
+                    logsInterval={logsInterval}
+                    setLogsInterval={setLogsInterval}
+                    logsQuery={logsQuery}
+                    setLogsQuery={setLogsQuery}
+                    autoRefreshLogs={autoRefreshLogs}
+                    setAutoRefreshLogs={setAutoRefreshLogs}
+                    fetchServiceLogs={fetchServiceLogs}
+                    serviceLogsLoading={serviceLogsLoading}
+                    serviceLogs={serviceLogs}
+                    configFiles={configFiles}
+                    selectedConfigId={selectedConfigId}
+                    setSelectedConfigId={setSelectedConfigId}
+                    isSavingConfig={isSavingConfig}
+                    handleToggleNginxSite={handleToggleNginxSite}
+                    configIsDirty={configIsDirty}
+                    configLoading={configLoading}
+                    fetchConfigContent={fetchConfigContent}
+                    configContent={configContent}
+                    setConfigContent={setConfigContent}
+                    setConfigIsDirty={setConfigIsDirty}
+                    isValidatingConfig={isValidatingConfig}
+                    handleValidateConfig={handleValidateConfig}
+                    handleSaveConfig={handleSaveConfig}
+                    configValidation={configValidation}
+                  />
+                )}
 
-              {activeTab === 'logs' && hasPermission('system:logs') && (
-                <LogsPanel
-                  hasPermission={hasPermission}
-                />
-              )}
+                {activeTab === 'logs' && hasPermission('system:logs') && (
+                  <LogsScreen
+                    hasPermission={hasPermission}
+                  />
+                )}
 
-              {activeTab === 'users' && hasPermission('users:read') && (
-                <UsersPanel
-                  user={user}
-                  setConfirmModal={setConfirmModal}
-                  hasPermission={hasPermission}
-                />
-              )}
+                {activeTab === 'users' && hasPermission('users:read') && (
+                  <UsersScreen
+                    user={user}
+                    setConfirmModal={setConfirmModal}
+                    hasPermission={hasPermission}
+                  />
+                )}
 
-              {activeTab === 'plans' && hasPermission('plans:read') && (
-                <PlansPanel
-                  hasPermission={hasPermission}
-                  setConfirmModal={setConfirmModal}
-                  onPlansChange={(updatedPlans) => setPlans(updatedPlans)}
-                />
-              )}
+                {activeTab === 'plans' && hasPermission('plans:read') && (
+                  <PlansScreen
+                    hasPermission={hasPermission}
+                    setConfirmModal={setConfirmModal}
+                    onPlansChange={(updatedPlans) => setPlans(updatedPlans)}
+                  />
+                )}
 
-              {activeTab === 'registrations' && hasPermission('registrations:read') && (
-                <RegistrationsPanel
-                  credentials={credentials}
-                  hasPermission={hasPermission}
-                />
-              )}
+                {activeTab === 'registrations' && hasPermission('registrations:read') && (
+                  <RegistrationsScreen
+                    credentials={credentials}
+                    hasPermission={hasPermission}
+                  />
+                )}
 
-              {activeTab === 'geo-auth' && (hasPermission('geo_mail:view') || hasPermission('geo_ssh:view')) && (
-                <GeoAuthPanel
-                  hasPermission={hasPermission}
-                  geoSubTab={geoSubTab}
-                  setGeoSubTab={setGeoSubTab}
-                  selectedGeoDomainId={selectedGeoDomainId}
-                  setSelectedGeoDomainId={setSelectedGeoDomainId}
-                  geoSettings={geoSettings}
-                  geoAllowedCountries={geoAllowedCountries}
-                  setGeoAllowedCountries={setGeoAllowedCountries}
-                  geoAllowedRegions={geoAllowedRegions}
-                  setGeoAllowedRegions={setGeoAllowedRegions}
-                  geoRegions={geoRegions}
-                  geoAugmentDefault={geoAugmentDefault}
-                  setGeoAugmentDefault={setGeoAugmentDefault}
-                  domains={domains}
-                  loading={loading}
-                  sshAllowedRegions={sshAllowedRegions}
-                  setSshAllowedRegions={setSshAllowedRegions}
-                  sshAllowedCountries={sshAllowedCountries}
-                  setSshAllowedCountries={setSshAllowedCountries}
-                  sshAugmentDefault={sshAugmentDefault}
-                  setSshAugmentDefault={setSshAugmentDefault}
-                  sshLogs={sshLogs}
-                  geoBans={geoBans}
-                  geoExceptions={geoExceptions}
-                  fetchGeoData={fetchGeoData}
-                  handleSaveGeoPolicy={handleSaveGeoPolicy}
-                  handleSaveSshPolicy={handleSaveSshPolicy}
-                  handleClearGeoBan={handleClearGeoBan}
-                  handleResetRegions={handleResetRegions}
-                  setEditingRegion={setEditingRegion}
-                  editingRegion={editingRegion}
-                  editingRegionCountries={editingRegionCountries}
-                  setEditingRegionCountries={setEditingRegionCountries}
-                  handleUpdateRegion={handleUpdateRegion}
-                  showAddGeoExceptionModal={showAddGeoExceptionModal}
-                  setShowAddGeoExceptionModal={setShowAddGeoExceptionModal}
-                  geoExcUsername={geoExcUsername}
-                  setGeoExcUsername={setGeoExcUsername}
-                  geoExcService={geoExcService}
-                  setGeoExcService={setGeoExcService}
-                  geoExcCountries={geoExcCountries}
-                  setGeoExcCountries={setGeoExcCountries}
-                  geoExcExpires={geoExcExpires}
-                  setGeoExcExpires={setGeoExcExpires}
-                  handleSaveGeoException={handleSaveGeoException}
-              handleDeleteGeoException={handleDeleteGeoException}
-                />
-              )}
-            </>
-          )}
-        </>
-      )}
+                {activeTab === 'geo-auth' && (hasPermission('geo_mail:view') || hasPermission('geo_ssh:view')) && (
+                  <GeoAuthScreen
+                    hasPermission={hasPermission}
+                    geoSubTab={geoSubTab}
+                    setGeoSubTab={setGeoSubTab}
+                    selectedGeoDomainId={selectedGeoDomainId}
+                    setSelectedGeoDomainId={setSelectedGeoDomainId}
+                    geoSettings={geoSettings}
+                    geoAllowedCountries={geoAllowedCountries}
+                    setGeoAllowedCountries={setGeoAllowedCountries}
+                    geoAllowedRegions={geoAllowedRegions}
+                    setGeoAllowedRegions={setGeoAllowedRegions}
+                    geoRegions={geoRegions}
+                    geoAugmentDefault={geoAugmentDefault}
+                    setGeoAugmentDefault={setGeoAugmentDefault}
+                    domains={domains}
+                    loading={loading}
+                    sshAllowedRegions={sshAllowedRegions}
+                    setSshAllowedRegions={setSshAllowedRegions}
+                    sshAllowedCountries={sshAllowedCountries}
+                    setSshAllowedCountries={setSshAllowedCountries}
+                    sshAugmentDefault={sshAugmentDefault}
+                    setSshAugmentDefault={setSshAugmentDefault}
+                    sshLogs={sshLogs}
+                    geoBans={geoBans}
+                    geoExceptions={geoExceptions}
+                    fetchGeoData={fetchGeoData}
+                    handleSaveGeoPolicy={handleSaveGeoPolicy}
+                    handleSaveSshPolicy={handleSaveSshPolicy}
+                    handleClearGeoBan={handleClearGeoBan}
+                    handleResetRegions={handleResetRegions}
+                    setEditingRegion={setEditingRegion}
+                    editingRegion={editingRegion}
+                    editingRegionCountries={editingRegionCountries}
+                    setEditingRegionCountries={setEditingRegionCountries}
+                    handleUpdateRegion={handleUpdateRegion}
+                    showAddGeoExceptionModal={showAddGeoExceptionModal}
+                    setShowAddGeoExceptionModal={setShowAddGeoExceptionModal}
+                    geoExcUsername={geoExcUsername}
+                    setGeoExcUsername={setGeoExcUsername}
+                    geoExcService={geoExcService}
+                    setGeoExcService={setGeoExcService}
+                    geoExcCountries={geoExcCountries}
+                    setGeoExcCountries={setGeoExcCountries}
+                    geoExcExpires={geoExcExpires}
+                    setGeoExcExpires={setGeoExcExpires}
+                    handleSaveGeoException={handleSaveGeoException}
+                    handleDeleteGeoException={handleDeleteGeoException}
+                  />
+                )}
+              </>
+            )}
+          </Suspense>
         </div>
       </div>
 
@@ -3618,7 +3518,7 @@ export default function App() {
 }
 
 
-function ConfirmModal({ title, message, confirmLabel, tone = 'default', loading, onCancel, onConfirm }) {
+function ConfirmModal({ title, message, confirmLabel = 'Confirm', tone = 'default', loading, onCancel, onConfirm }) {
   const isDanger = tone === 'danger';
   const isWarning = tone === 'warning';
   const confirmClass = isDanger
@@ -3631,8 +3531,12 @@ function ConfirmModal({ title, message, confirmLabel, tone = 'default', loading,
     <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-[70] animate-fade-in">
       <div className="w-full max-w-md rounded-[24px] border-2 border-[#171717] bg-gradient-to-b from-[#1f1320] via-[#171318] to-[#120d12] p-7 shadow-[10px_10px_0_#000000] space-y-6">
         <div className="space-y-3">
-          <div className={`w-14 h-14 rounded-2xl border-2 border-[#171717] flex items-center justify-center shadow-[4px_4px_0_#000000] ${isDanger ? 'bg-[#fee2e2] text-[#b91c1c]' : isWarning ? 'bg-[#fef3c7] text-[#92400e]' : 'bg-brand-mint/30 text-brand-plum'}`}>
-            <AlertTriangle className="w-6 h-6" />
+          <div className={`w-14 h-14 rounded-2xl border-2 border-[#171717] flex items-center justify-center shadow-[4px_4px_0_#000000] ${isDanger ? 'bg-red-500/10 text-red-400' : isWarning ? 'bg-amber-500/10 text-amber-400' : 'bg-brand-mint/10 text-brand-mint'}`}>
+            {isDanger ? (
+              <Trash2 className="w-6 h-6" />
+            ) : (
+              <AlertTriangle className="w-6 h-6" />
+            )}
           </div>
           <h3 className="text-2xl font-black text-white tracking-tight">{title}</h3>
           <p className="text-sm text-slate-300 leading-relaxed">{message}</p>
@@ -3858,284 +3762,4 @@ function LoginScreen({ onLogin, onGoogleLogin, loading, errorMsg }) {
   );
 }
 
-function DomainDetailPage({ 
-  domain, mailboxes, aliases, provisionLogs, onBack, onAddUser, 
-  onAddAlias, onResetPassword, onDeleteMailbox, onDeleteAlias, 
-  onEditAlias, plans, hasPermission, onDeleteDomain, refresh 
-}) {
-  const [activeSubTab, setActiveSubTab] = useState('mailboxes');
 
-  const activePlan = plans.find(p => p.max_users === domain.max_users && p.max_aliases === domain.max_aliases);
-
-  return (
-    <div className="space-y-6">
-      {/* Back Header */}
-      <div className="flex items-center justify-between border-b border-white/5 pb-4">
-        <button 
-          onClick={onBack}
-          className="text-slate-400 hover:text-white text-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-        >
-          ← Back to Domains
-        </button>
-        <div className="flex gap-2">
-          <button 
-            onClick={refresh}
-            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-          {hasPermission('domains:delete') && (
-            <button 
-              onClick={onDeleteDomain}
-              className="px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 text-xs font-bold transition-all cursor-pointer"
-            >
-              Delete Domain
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Domain Top Info */}
-      <div className="glassmorphism-card p-6 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div>
-          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-            domain.is_active ? 'bg-brand-mint/10 text-brand-mint border border-brand-mint/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
-          }`}>
-            {domain.is_active ? 'Active' : 'Suspended'}
-          </span>
-          <h2 className="text-2xl font-black text-white mt-1.5">{domain.name}</h2>
-          <p className="text-xs text-slate-400 mt-1 font-mono">Incoming Mailserver: MX mail.zimprices.co.zw (Priority 10)</p>
-        </div>
-
-        <div className="flex gap-4">
-          <div className="text-right">
-            <span className="text-xs text-slate-400">Mailbox Limit</span>
-            <p className="text-white font-bold">{mailboxes.length} / {domain.max_users}</p>
-          </div>
-          <div className="text-right border-l border-white/10 pl-4">
-            <span className="text-xs text-slate-400">Alias Limit</span>
-            <p className="text-white font-bold">{aliases.length} / {domain.max_aliases}</p>
-          </div>
-          <div className="text-right border-l border-white/10 pl-4">
-            <span className="text-xs text-slate-400">Service Plan</span>
-            <p className="text-brand-mint font-bold">{activePlan ? activePlan.name : 'Standard'}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Sub Tabs Toggle */}
-      <div className="flex gap-2 border-b border-white/5 pb-2">
-        <button 
-          onClick={() => setActiveSubTab('mailboxes')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeSubTab === 'mailboxes' ? 'bg-brand-mint/10 text-brand-mint border border-brand-mint/20' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <Users className="w-3.5 h-3.5 inline mr-1.5" />
-          Mailboxes ({mailboxes.length})
-        </button>
-        <button 
-          onClick={() => setActiveSubTab('aliases')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeSubTab === 'aliases' ? 'bg-brand-mint/10 text-brand-mint border border-brand-mint/20' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <LinkIcon className="w-3.5 h-3.5 inline mr-1.5" />
-          Forwarders ({aliases.length})
-        </button>
-        <button 
-          onClick={() => setActiveSubTab('logs')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeSubTab === 'logs' ? 'bg-brand-mint/10 text-brand-mint border border-brand-mint/20' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <Clock className="w-3.5 h-3.5 inline mr-1.5" />
-          Provision Logs
-        </button>
-      </div>
-
-      {/* TAB SUBSECTIONS */}
-      {activeSubTab === 'mailboxes' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-white">Active Mailboxes</h3>
-            {hasPermission('mailboxes:create') && (
-              <button 
-                onClick={onAddUser}
-                className="bg-brand-mint hover:bg-brand-mint-hover text-brand-plum font-bold text-xs px-4 py-2 rounded-full flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                New Mailbox
-              </button>
-            )}
-          </div>
-
-          <div className="glassmorphism-card rounded-2xl overflow-hidden border border-white/5">
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="border-b border-white/5 bg-white/2">
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Email Address</th>
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Full Name</th>
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Quota Allocation</th>
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mailboxes.length > 0 ? (
-                  mailboxes.map(u => (
-                    <tr key={u.email} className="border-b border-white/5 hover:bg-white/2 transition-colors">
-                      <td className="p-4 text-sm font-semibold text-white">{u.email}</td>
-                      <td className="p-4 text-sm text-slate-300">{u.full_name}</td>
-                      <td className="p-4">
-                        {(() => {
-                          const formatBytes = (kb) => {
-                            if (kb === 0 || !kb) return '0 KB';
-                            const mb = kb / 1024;
-                            if (mb >= 1024) {
-                              const gb = mb / 1024;
-                              return `${Number(gb.toFixed(1))} GB`;
-                            }
-                            return `${Number(mb.toFixed(0))} MB`;
-                          };
-                          const pct = u.quota_kb > 0 ? ((u.used_kb || 0) / u.quota_kb) * 100 : 0;
-                          return (
-                            <div className="space-y-1.5 max-w-[150px]">
-                              <span className="text-[10px] text-slate-400 font-mono">
-                                {formatBytes(u.used_kb || 0)} / {formatBytes(u.quota_kb)}
-                              </span>
-                              <div className="w-full h-2 bg-brand-plum rounded-full overflow-hidden indicator-track">
-                                <div 
-                                  className="h-full bg-brand-mint rounded-full indicator-bar" 
-                                  style={{ width: `${Math.min(pct, 100).toFixed(1)}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </td>
-                      <td className="p-4 text-right flex justify-end gap-1">
-                        {hasPermission('mailboxes:update') && (
-                          <button 
-                            onClick={() => onResetPassword(u.email)}
-                            className="text-slate-300 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors text-xs font-bold flex items-center gap-1"
-                            title="Reset Password"
-                          >
-                            <RefreshCw className="w-3.5 h-3.5" />
-                            Reset
-                          </button>
-                        )}
-                        {hasPermission('mailboxes:delete') && (
-                          <button 
-                            onClick={() => onDeleteMailbox(u.email)}
-                            className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/10 transition-colors"
-                            title="Delete Box"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="4" className="p-8 text-center text-slate-400">No mailboxes created.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {activeSubTab === 'aliases' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-white">Mail Forwarding Rules</h3>
-            {hasPermission('aliases:create') && (
-              <button 
-                onClick={onAddAlias}
-                className="bg-brand-mint hover:bg-brand-mint-hover text-brand-plum font-bold text-xs px-4 py-2 rounded-full flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                New Alias
-              </button>
-            )}
-          </div>
-
-          <div className="glassmorphism-card rounded-2xl overflow-hidden border border-white/5">
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="border-b border-white/5 bg-white/2">
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Source (Forward From)</th>
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Destination (Forward To)</th>
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Managed</th>
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {aliases.length > 0 ? (
-                  aliases.map(a => (
-                    <tr key={a.id} className="border-b border-white/5 hover:bg-white/2 transition-colors">
-                      <td className="p-4 text-sm font-semibold text-white">{a.source}</td>
-                      <td className="p-4 text-sm text-slate-300 font-mono">{a.destination}</td>
-                      <td className="p-4 text-xs">
-                        <span className={`px-2 py-0.5 rounded ${a.managed_by_platform ? 'bg-brand-mint/10 text-brand-mint' : 'bg-white/5 text-slate-400'}`}>
-                          {a.managed_by_platform ? 'User' : 'System'}
-                        </span>
-                      </td>
-                      <td className="p-4 text-right flex justify-end gap-1">
-                        {a.managed_by_platform && (
-                          <>
-                            {hasPermission('aliases:update') && (
-                              <button 
-                                onClick={() => onEditAlias(a)}
-                                className="text-slate-300 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            {hasPermission('aliases:delete') && (
-                              <button 
-                                onClick={() => onDeleteAlias(a.id)}
-                                className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/10 transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="4" className="p-8 text-center text-slate-400">No active alias rules.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {activeSubTab === 'logs' && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-bold text-white">Infrastructure Provisioning Log</h3>
-          <div className="glassmorphism-card p-6 rounded-2xl border border-white/5 font-mono text-xs space-y-2 max-h-[400px] overflow-y-auto">
-            {provisionLogs.length > 0 ? (
-              provisionLogs.map(l => (
-                <div key={l.id} className="flex gap-4 hover:bg-white/2 py-1 rounded px-2">
-                  <span className="text-slate-500 shrink-0">{formatTimeOnly(l.created_at)}</span>
-                  <span className={`font-bold shrink-0 w-16 ${l.status === 'SUCCESS' ? 'text-brand-mint' : 'text-red-400'}`}>[{l.step}]</span>
-                  <span className="text-slate-300">{l.details}</span>
-                </div>
-              ))
-            ) : (
-              <p className="text-slate-500">No logs found for this domain.</p>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}

@@ -311,14 +311,16 @@ export function UsersPanel({
                               setConfirmModal({
                                 title: "Delete Console Account?",
                                 message: `Are you sure you want to permanently delete user ${u.username}? This will remove all their role assignments, scopes, and session keys immediately.`,
+                                confirmLabel: "Delete",
+                                tone: "danger",
                                 onConfirm: () => handleDeleteConsoleUser(u.id)
                               });
                             }}
-                            disabled={isSelf}
                             className={`p-2 rounded-lg bg-white/5 border border-white/10 text-red-400 hover:bg-red-500/10 transition-all ${
                               isSelf ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
                             }`}
                             title="Delete Console User"
+                            disabled={isSelf}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
