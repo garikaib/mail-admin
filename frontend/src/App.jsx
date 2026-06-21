@@ -1839,7 +1839,7 @@ export default function App() {
         body: JSON.stringify({
           label: editCredLabel,
           email: editCredEmail,
-          api_key: editCredKey || null
+          ...(editCredKey && { api_key: editCredKey })
         })
       });
       const data = await res.json();
@@ -3467,14 +3467,14 @@ export default function App() {
                     setShowEditCredModal(false);
                     setEditingCredential(null);
                   }}
-                  className="flex-1 py-3 bg-white/5 border border-white/10 text-white font-bold rounded-xl text-sm"
+                  className="flex-1 py-3 bg-gray-200 hover:bg-gray-300 text-brand-plum font-bold rounded-xl text-sm transition-all"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit" 
                   disabled={loading}
-                  className="flex-1 py-3 bg-brand-mint hover:bg-brand-mint-hover text-brand-plum font-bold rounded-xl text-sm transition-all"
+                  className="flex-1 py-3 bg-brand-mint hover:bg-brand-mint-hover text-white font-bold rounded-xl text-sm transition-all"
                 >
                   Update Credential
                 </button>
@@ -3644,27 +3644,27 @@ function ConfirmModal({ title, message, confirmLabel, tone = 'default', loading,
   const isDanger = tone === 'danger';
   const isWarning = tone === 'warning';
   const confirmClass = isDanger
-    ? 'bg-red-500 text-white hover:bg-red-600'
+    ? 'bg-[#ef4444] text-white hover:bg-[#dc2626] shadow-[4px_4px_0_#4a1010]'
     : isWarning
-      ? 'bg-brand-yellow text-brand-plum hover:bg-brand-yellow-hover'
-      : 'bg-brand-mint text-brand-plum hover:bg-brand-mint-hover';
+      ? 'bg-[#f59e0b] text-[#20170a] hover:bg-[#d97706] shadow-[4px_4px_0_#4a2d08]'
+      : 'bg-brand-mint text-brand-plum hover:bg-brand-mint-hover shadow-[4px_4px_0_#151214]';
 
   return (
-    <div className="fixed inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center p-4 z-[70] animate-fade-in">
-      <div className="bg-[#fffaf0] border-2 border-black rounded-[20px] p-7 w-full max-w-md shadow-[8px_8px_0_#151214] space-y-6">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-[70] animate-fade-in">
+      <div className="w-full max-w-md rounded-[24px] border-2 border-[#171717] bg-gradient-to-b from-[#1f1320] via-[#171318] to-[#120d12] p-7 shadow-[10px_10px_0_#000000] space-y-6">
         <div className="space-y-3">
-          <div className={`w-12 h-12 rounded-2xl border-2 border-black flex items-center justify-center shadow-[2px_2px_0_#151214] ${isDanger ? 'bg-red-100 text-red-600' : isWarning ? 'bg-brand-yellow/40 text-brand-plum' : 'bg-brand-mint/30 text-brand-plum'}`}>
+          <div className={`w-14 h-14 rounded-2xl border-2 border-[#171717] flex items-center justify-center shadow-[4px_4px_0_#000000] ${isDanger ? 'bg-[#fee2e2] text-[#b91c1c]' : isWarning ? 'bg-[#fef3c7] text-[#92400e]' : 'bg-brand-mint/30 text-brand-plum'}`}>
             <AlertTriangle className="w-6 h-6" />
           </div>
-          <h3 className="text-2xl font-black text-[#151214] tracking-tight">{title}</h3>
-          <p className="text-sm text-[#625a63] leading-relaxed">{message}</p>
+          <h3 className="text-2xl font-black text-white tracking-tight">{title}</h3>
+          <p className="text-sm text-slate-300 leading-relaxed">{message}</p>
         </div>
         <div className="flex gap-3 pt-2">
           <button
             type="button"
             onClick={onCancel}
             disabled={loading}
-            className="flex-1 py-2.5 bg-white border-2 border-black text-[#151214] font-black rounded-xl shadow-[3px_3px_0_#151214] transition-all hover:bg-slate-50 active:translate-y-0.5 active:shadow-[1px_1px_0_#151214] disabled:opacity-60"
+            className="flex-1 py-3 bg-white/95 border-2 border-[#171717] text-[#171717] font-black rounded-xl shadow-[4px_4px_0_#000000] transition-all hover:bg-white active:translate-y-0.5 active:shadow-[1px_1px_0_#000000] disabled:opacity-60"
           >
             Cancel
           </button>
@@ -3672,7 +3672,7 @@ function ConfirmModal({ title, message, confirmLabel, tone = 'default', loading,
             type="button"
             onClick={onConfirm}
             disabled={loading}
-            className={`flex-1 py-2.5 border-2 border-black font-black rounded-xl shadow-[3px_3px_0_#151214] transition-all active:translate-y-0.5 active:shadow-[1px_1px_0_#151214] disabled:opacity-60 ${confirmClass}`}
+            className={`flex-1 py-3 border-2 border-[#171717] font-black rounded-xl transition-all active:translate-y-0.5 active:shadow-[1px_1px_0_#000000] disabled:opacity-60 ${confirmClass}`}
           >
             {loading ? 'Working...' : confirmLabel}
           </button>
