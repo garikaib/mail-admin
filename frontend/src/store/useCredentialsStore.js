@@ -5,7 +5,7 @@ const useCredentialsStore = create((set) => ({
   credentials: [],
   setCredentials: (credentials) => set({ credentials }),
   cloudflareZones: [],
-  setCloudflareZones: (cloudflareZones) => set({ cloudflareZones }),
+  setCloudflareZones: (cloudflareZones) => set({ cloudflareZones: Array.isArray(cloudflareZones) ? cloudflareZones : [] }),
   selectedCredential: null,
   setSelectedCredential: (selectedCredential) => set({ selectedCredential }),
   selectedZone: null,

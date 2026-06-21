@@ -67,7 +67,7 @@ export default function CredentialsScreen() {
   
   // Grouping and Filtering logic
   const groupedZones = {};
-  const filteredZones = cloudflareZones.filter(z => {
+  const filteredZones = (Array.isArray(cloudflareZones) ? cloudflareZones : []).filter(z => {
     const matchesSearch = z.name.toLowerCase().includes(cfZoneSearchQuery.toLowerCase());
     const matchesLocal = isMatched(z.name);
     const matchesStatus = cfZoneStatusFilter === 'all' || 

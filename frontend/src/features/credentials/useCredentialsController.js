@@ -74,12 +74,12 @@ export function useCredentialsController() {
   const fetchCloudflareZones = async (authToken = token) => {
     if (!authToken) return;
     try {
-      const res = await fetch(`${API_BASE}/domains/zone-ownership`, {
+      const res = await fetch(`${API_BASE}/domains/cloudflare-zones`, {
         headers: { 'Authorization': `Bearer ${authToken}` }
       });
       if (res.ok) {
         const data = await res.json();
-        setCloudflareZones(data);
+        setCloudflareZones(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       console.error(err);

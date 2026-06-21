@@ -23,7 +23,7 @@ def custom_jsonable_encoder(obj, *args, **kwargs):
     return append_utc_timezone_to_naive_iso_strings(res)
 
 encoders.jsonable_encoder = custom_jsonable_encoder
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from backend.app.core.database import engine, Base
@@ -227,7 +227,7 @@ if os.path.exists(frontend_dir) and os.path.exists(os.path.join(frontend_dir, "i
     def serve_frontend_spa(catchall: str):
         # Exclude API endpoints from routing to index.html
         if catchall.startswith("api"):
-            return {"detail": "Not Found"}
+            raise HTTPException(status_code=404, detail="Not Found")
         return FileResponse(os.path.join(frontend_dir, "index.html"))
 else:
     logger.warning(f"Frontend dist directory not found at: {frontend_dir}. Running in API-only mode.")
