@@ -7,6 +7,7 @@ import {
 
 import { useDomainsController } from './useDomainsController';
 import { usePermissions } from '../../shared/lib/usePermissions';
+import Modal from '../../shared/components/Modal';
 import useAuthStore from '../../store/useAuthStore';
 import useUiStore from '../../store/useUiStore';
 import useCredentialsStore from '../../store/useCredentialsStore';
@@ -235,11 +236,13 @@ export default function DomainsScreen() {
       </div>
 
       {/* Domain Provision Modal */}
-      {showAddDomainModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-brand-plum border border-white/10 rounded-3xl p-8 w-full max-w-lg shadow-2xl relative space-y-6">
-            <h3 className="text-2xl font-bold text-white tracking-tight">Provision New Mail Domain</h3>
-            <form onSubmit={handleProvisionDomain} className="space-y-4">
+      <Modal
+        isOpen={showAddDomainModal}
+        onClose={() => setShowAddDomainModal(false)}
+        title="Provision New Mail Domain"
+        size="lg"
+      >
+        <form onSubmit={handleProvisionDomain} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Domain Name</label>
                 <input 
@@ -335,17 +338,18 @@ export default function DomainsScreen() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* DNS Review Modal */}
-      {showDnsReviewModal && dnsReviewData && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-brand-plum border border-white/10 rounded-3xl p-8 w-full max-w-4xl shadow-2xl relative space-y-6 max-h-[90vh] overflow-y-auto">
-            <div>
-              <h3 className="text-2xl font-bold text-white tracking-tight">Review Proposed DNS Records</h3>
-              <p className="text-sm text-slate-400 mt-1">
+      <Modal
+        isOpen={showDnsReviewModal && !!dnsReviewData}
+        onClose={() => setShowDnsReviewModal(false)}
+        title="Review Proposed DNS Records"
+        size="4xl"
+      >
+        <div className="space-y-6 max-h-[75vh] overflow-y-auto pr-1">
+          <div>
+            <p className="text-sm text-slate-400 mt-1">
                 For domain <span className="text-brand-mint font-semibold">{dnsReviewData.domain}</span>. Review and customize the Cloudflare entries before provisioning.
               </p>
             </div>
@@ -442,23 +446,29 @@ export default function DomainsScreen() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </Modal>
 
       {/* Provisioning Live Stepper Overlay */}
-      {showProvisioningModal && trackedProvisioningDomain && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-brand-plum border-2 border-white/10 rounded-3xl p-8 w-full max-w-xl shadow-2xl relative space-y-6 max-h-[90vh] overflow-y-auto">
-            
-            {/* Header */}
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="text-[10px] font-bold bg-brand-mint/10 text-brand-mint border border-brand-mint/25 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                  {isFinished ? (isSuccess ? 'Provisioned Successfully' : 'Provisioning Failed') : 'Provisioning Active'}
-                </span>
-                <h3 className="text-2xl font-black text-white tracking-tight mt-3">
-                  {trackedProvisioningDomain}
-                </h3>
+      <Modal
+        isOpen={showProvisioningModal && !!trackedProvisioningDomain}
+        onClose={() => {
+          if (isFinished) {
+            setShowProvisioningModal(false);
+            setTrackedProvisioningDomain(null);
+          }
+        }}
+        size="xl"
+      >
+        <div className="space-y-6 max-h-[80vh] overflow-y-auto pr-1">
+          {/* Header */}
+          <div className="flex justify-between items-start">
+            <div>
+              <span className="text-[10px] font-bold bg-brand-mint/10 text-brand-mint border border-brand-mint/25 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                {isFinished ? (isSuccess ? 'Provisioned Successfully' : 'Provisioning Failed') : 'Provisioning Active'}
+              </span>
+              <h3 className="text-2xl font-black text-white tracking-tight mt-3">
+                {trackedProvisioningDomain}
+              </h3>
                 <p className="text-xs text-slate-400 mt-1">
                   Mail Server Infrastructure Provisioning Pipeline
                 </p>
@@ -607,16 +617,16 @@ export default function DomainsScreen() {
               </div>
             )}
 
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Add Mailbox User Modal */}
-      {showAddUserModal && selectedDomain && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-brand-plum border border-white/10 rounded-3xl p-8 w-full max-w-md shadow-2xl relative space-y-6">
-            <h3 className="text-2xl font-bold text-white tracking-tight">Create Mailbox</h3>
-            <form onSubmit={handleAddMailbox} className="space-y-4">
+      <Modal
+        isOpen={showAddUserModal && !!selectedDomain}
+        onClose={() => setShowAddUserModal(false)}
+        title="Create Mailbox"
+      >
+        <form onSubmit={handleAddMailbox} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Email Username</label>
                 <div className="flex items-center bg-brand-plum-dark border border-white/10 rounded-xl overflow-hidden focus-within:border-brand-mint">
@@ -704,16 +714,15 @@ export default function DomainsScreen() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* Add Alias Modal */}
-      {showAddAliasModal && selectedDomain && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-brand-plum border border-white/10 rounded-3xl p-8 w-full max-w-md shadow-2xl relative space-y-6">
-            <h3 className="text-2xl font-bold text-white tracking-tight">Create Email Alias</h3>
-            <form onSubmit={handleAddAlias} className="space-y-4">
+      <Modal
+        isOpen={showAddAliasModal && !!selectedDomain}
+        onClose={() => setShowAddAliasModal(false)}
+        title="Create Email Alias"
+      >
+        <form onSubmit={handleAddAlias} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Source (Forward From)</label>
                 <div className="flex items-center bg-brand-plum-dark border border-white/10 rounded-xl overflow-hidden focus-within:border-brand-mint">
@@ -758,16 +767,15 @@ export default function DomainsScreen() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* Edit Alias Modal */}
-      {editingAlias && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-brand-plum border border-white/10 rounded-3xl p-8 w-full max-w-md shadow-2xl relative space-y-6">
-            <h3 className="text-2xl font-bold text-white tracking-tight">Edit Email Alias</h3>
-            <form onSubmit={handleUpdateAlias} className="space-y-4">
+      <Modal
+        isOpen={!!editingAlias}
+        onClose={() => setEditingAlias(null)}
+        title="Edit Email Alias"
+      >
+        <form onSubmit={handleUpdateAlias} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Source</label>
                 <input 
@@ -807,9 +815,7 @@ export default function DomainsScreen() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Edit2, Trash2, X, Copy, Sparkles, AlertTriangle } from 'lucide-react';
 import { api } from '../../shared/api/client';
 import { formatDateOnly, generateSecurePassword } from '../../shared/lib/helpers';
+import Modal from '../../shared/components/Modal';
 
 export function UsersPanel({
   user,
@@ -345,23 +346,15 @@ export function UsersPanel({
       </div>
 
       {/* Add Console User Modal */}
-      {showAddConsoleUserModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-brand-plum border border-white/10 rounded-3xl p-8 w-full max-w-lg shadow-2xl relative space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-2xl font-bold text-white tracking-tight">Add Console Administrator</h3>
-                <p className="text-slate-400 text-xs mt-1">Register a new user to access the ZimPrices administrative console.</p>
-              </div>
-              <button 
-                onClick={() => setShowAddConsoleUserModal(false)}
-                className="p-1 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <form onSubmit={handleCreateConsoleUser} className="space-y-4">
+      <Modal
+        isOpen={showAddConsoleUserModal}
+        onClose={() => setShowAddConsoleUserModal(false)}
+        title="Add Console Administrator"
+        size="lg"
+      >
+        <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+          <p className="text-slate-400 text-xs mb-4">Register a new user to access the ZimPrices administrative console.</p>
+          <form onSubmit={handleCreateConsoleUser} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Email Address</label>
                 <input 
@@ -507,28 +500,19 @@ export function UsersPanel({
                 </button>
               </div>
             </form>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Edit Console User Modal */}
-      {showEditConsoleUserModal && selectedConsoleUser && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-brand-plum border border-white/10 rounded-3xl p-8 w-full max-w-lg shadow-2xl relative space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-2xl font-bold text-white tracking-tight">Edit Console Permissions</h3>
-                <p className="text-slate-400 text-xs mt-1">Update roles, scopes, or password for <strong>{selectedConsoleUser.username}</strong>.</p>
-              </div>
-              <button 
-                onClick={handleCloseEditConsoleUserModal}
-                className="p-1 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <form onSubmit={(e) => {
+      <Modal
+        isOpen={showEditConsoleUserModal && !!selectedConsoleUser}
+        onClose={handleCloseEditConsoleUserModal}
+        title="Edit Console Permissions"
+        size="lg"
+      >
+        <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+          <p className="text-slate-400 text-xs mb-4">Update roles, scopes, or password for <strong>{selectedConsoleUser?.username}</strong>.</p>
+          <form onSubmit={(e) => {
               e.preventDefault();
               const updateData = {
                 is_superuser: editConsoleIsSuper,
@@ -679,9 +663,8 @@ export function UsersPanel({
                 </button>
               </div>
             </form>
-          </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

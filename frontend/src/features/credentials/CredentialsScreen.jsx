@@ -3,6 +3,7 @@ import { useCredentialsController } from './useCredentialsController';
 import { usePermissions } from '../../shared/lib/usePermissions';
 import { CredentialsPanel } from './CredentialsPanel';
 import { RefreshCw } from 'lucide-react';
+import Modal from '../../shared/components/Modal';
 
 export default function CredentialsScreen() {
   const { hasPermission } = usePermissions();
@@ -141,13 +142,13 @@ export default function CredentialsScreen() {
       />
 
       {/* Add DNS Record Modal */}
-      {showAddDnsRecordModal && selectedZone && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-brand-plum border border-white/10 rounded-3xl p-8 w-full max-w-md shadow-2xl relative space-y-6">
-            <h3 className="text-2xl font-bold text-white tracking-tight">Add DNS Record</h3>
-            <p className="text-slate-400 text-xs">Adding a record to zone <span className="font-mono text-slate-300">{selectedZone.name}</span></p>
-            
-            <form onSubmit={handleCreateDnsRecord} className="space-y-4">
+      <Modal
+        isOpen={showAddDnsRecordModal && !!selectedZone}
+        onClose={() => setShowAddDnsRecordModal(false)}
+        title="Add DNS Record"
+      >
+        <p className="text-slate-400 text-xs mb-4">Adding a record to zone <span className="font-mono text-slate-300">{selectedZone?.name}</span></p>
+        <form onSubmit={handleCreateDnsRecord} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Type</label>
                 <select
@@ -258,18 +259,16 @@ export default function CredentialsScreen() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* Edit DNS Record Modal */}
-      {showEditDnsRecordModal && selectedZone && editingDnsRecord && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-brand-plum border border-white/10 rounded-3xl p-8 w-full max-w-md shadow-2xl relative space-y-6">
-            <h3 className="text-2xl font-bold text-white tracking-tight">Edit DNS Record</h3>
-            <p className="text-slate-400 text-xs">Editing record in zone <span className="font-mono text-slate-300">{selectedZone.name}</span></p>
-            
-            <form onSubmit={handleUpdateDnsRecord} className="space-y-4">
+      <Modal
+        isOpen={showEditDnsRecordModal && !!selectedZone && !!editingDnsRecord}
+        onClose={() => setShowEditDnsRecordModal(false)}
+        title="Edit DNS Record"
+      >
+        <p className="text-slate-400 text-xs mb-4">Editing record in zone <span className="font-mono text-slate-300">{selectedZone?.name}</span></p>
+        <form onSubmit={handleUpdateDnsRecord} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Type</label>
                 <select
@@ -381,16 +380,15 @@ export default function CredentialsScreen() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* Add Credential Modal */}
-      {showAddCredModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-brand-plum border border-white/10 rounded-3xl p-8 w-full max-w-md shadow-2xl relative space-y-6">
-            <h3 className="text-2xl font-bold text-white tracking-tight">Add Cloudflare Keys</h3>
-            <form onSubmit={handleAddCredential} className="space-y-4">
+      <Modal
+        isOpen={showAddCredModal}
+        onClose={() => setShowAddCredModal(false)}
+        title="Add Cloudflare Keys"
+      >
+        <form onSubmit={handleAddCredential} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Label (e.g. My Account)</label>
                 <input 
@@ -444,16 +442,18 @@ export default function CredentialsScreen() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* Edit Credential Modal */}
-      {showEditCredModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-brand-plum border border-white/10 rounded-3xl p-8 w-full max-w-md shadow-2xl relative space-y-6">
-            <h3 className="text-2xl font-bold text-white tracking-tight">Edit Cloudflare Keys</h3>
-            <form onSubmit={handleUpdateCredential} className="space-y-4">
+      <Modal
+        isOpen={showEditCredModal}
+        onClose={() => {
+          setShowEditCredModal(false);
+          setEditingCredential(null);
+        }}
+        title="Edit Cloudflare Keys"
+      >
+        <form onSubmit={handleUpdateCredential} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Label (e.g. My Account)</label>
                 <input 
@@ -509,9 +509,7 @@ export default function CredentialsScreen() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
     </>
   );
 }

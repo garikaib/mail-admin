@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
+import { 
+  Shield, Mail, Plus, Edit, Edit2, Trash2, Key, Globe, Search, RefreshCw, X
+} from 'lucide-react';
+import Modal from '../../shared/components/Modal';
 import { api } from '../../shared/api/client';
 
 export function PlansPanel({
@@ -243,12 +246,13 @@ export function PlansPanel({
       </div>
 
       {/* Add Plan Modal */}
-      {showAddPlanModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-brand-plum border-2 border-slate-950 rounded-2xl p-6 shadow-[8px_8px_0_#151214] relative">
-            <h3 className="text-xl font-black text-white mb-2">Create New Mail Plan</h3>
-            <p className="text-xs text-slate-400 mb-6">Define resources and quotas for domains on this plan.</p>
-            <form onSubmit={handleCreatePlan} className="space-y-4">
+      <Modal
+        isOpen={showAddPlanModal}
+        onClose={() => setShowAddPlanModal(false)}
+        title="Create New Mail Plan"
+      >
+        <p className="text-xs text-slate-400 mb-6">Define resources and quotas for domains on this plan.</p>
+        <form onSubmit={handleCreatePlan} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Plan Name</label>
                 <input 
@@ -327,17 +331,16 @@ export function PlansPanel({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* Edit Plan Modal */}
-      {showEditPlanModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-brand-plum border-2 border-slate-950 rounded-2xl p-6 shadow-[8px_8px_0_#151214] relative">
-            <h3 className="text-xl font-black text-white mb-2">Edit Mail Plan</h3>
-            <p className="text-xs text-slate-400 mb-6">Modify resource limits and defaults for this plan.</p>
-            <form onSubmit={handleUpdatePlan} className="space-y-4">
+      <Modal
+        isOpen={showEditPlanModal}
+        onClose={() => { setShowEditPlanModal(false); resetPlanForm(); }}
+        title="Edit Mail Plan"
+      >
+        <p className="text-xs text-slate-400 mb-6">Modify resource limits and defaults for this plan.</p>
+        <form onSubmit={handleUpdatePlan} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Plan Name</label>
                 <input 
@@ -416,9 +419,7 @@ export function PlansPanel({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

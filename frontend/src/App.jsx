@@ -8,6 +8,7 @@ import useAuthStore from './store/useAuthStore';
 import useUiStore from './store/useUiStore';
 import useDomainsStore from './store/useDomainsStore';
 import { usePermissions } from './shared/lib/usePermissions';
+import Modal from './shared/components/Modal';
 
 const API_BASE = '/api';
 
@@ -581,13 +582,12 @@ export default function App() {
       </div>
 
       {/* Global Change Password Modal */}
-      {showChangePasswordModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-brand-plum border border-white/10 rounded-3xl p-8 w-full max-w-md shadow-2xl relative space-y-6">
-            <div>
-              <h3 className="text-2xl font-bold text-white tracking-tight">Update Admin Password</h3>
-              <p className="text-xs text-slate-400 mt-1">Configure credentials for account {user?.email}.</p>
-            </div>
+      <Modal
+        isOpen={showChangePasswordModal}
+        onClose={() => { setShowChangePasswordModal(false); setPwdModalError(''); setPwdModalSuccess(''); }}
+        title="Update Admin Password"
+      >
+        <p className="text-xs text-slate-400 mb-6">Configure credentials for account {user?.email}.</p>
             
             {pwdModalError && (
               <div className="bg-red-500/10 border border-red-500/20 text-red-300 rounded-xl px-4 py-3 text-xs font-semibold flex items-center gap-2">
@@ -659,9 +659,7 @@ export default function App() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* Global Confirm Modal */}
       {confirmModal && (
@@ -685,23 +683,26 @@ function ConfirmModal({ title, message, confirmLabel = 'Confirm', tone = 'defaul
   const isDanger = tone === 'danger';
   const isWarning = tone === 'warning';
   const confirmClass = isDanger
-    ? 'bg-[#ef4444] text-white hover:bg-[#dc2626] shadow-[4px_4px_0_#4a1010]'
+    ? 'bg-[#ef4444] text-white hover:bg-[#dc2626]'
     : isWarning
-      ? 'bg-[#f59e0b] text-[#20170a] hover:bg-[#d97706] shadow-[4px_4px_0_#4a2d08]'
-      : 'bg-brand-mint text-brand-plum hover:bg-brand-mint-hover shadow-[4px_4px_0_#151214]';
+      ? 'bg-[#f59e0b] text-[#20170a] hover:bg-[#d97706]'
+      : 'bg-brand-mint text-brand-plum hover:bg-brand-mint-hover';
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-[70] animate-fade-in">
-      <div className="w-full max-w-md rounded-[24px] border-2 border-[#171717] bg-gradient-to-b from-[#1f1320] via-[#171318] to-[#120d12] p-7 shadow-[10px_10px_0_#000000] space-y-6">
+    <Modal
+      isOpen={true}
+      onClose={onCancel}
+      title={title}
+    >
+      <div className="space-y-6">
         <div className="space-y-3">
-          <div className={`w-14 h-14 rounded-2xl border-2 border-[#171717] flex items-center justify-center shadow-[4px_4px_0_#000000] ${isDanger ? 'bg-red-500/10 text-red-400' : isWarning ? 'bg-amber-500/10 text-amber-400' : 'bg-brand-mint/10 text-brand-mint'}`}>
+          <div className={`w-14 h-14 rounded-2xl border border-white/10 flex items-center justify-center ${isDanger ? 'bg-red-500/10 text-red-400' : isWarning ? 'bg-amber-500/10 text-amber-400' : 'bg-brand-mint/10 text-brand-mint'}`}>
             {isDanger ? (
               <Trash2 className="w-6 h-6" />
             ) : (
               <AlertTriangle className="w-6 h-6" />
             )}
           </div>
-          <h3 className="text-2xl font-black text-white tracking-tight">{title}</h3>
           <p className="text-sm text-slate-300 leading-relaxed">{message}</p>
         </div>
         <div className="flex gap-3 pt-2">
@@ -709,7 +710,7 @@ function ConfirmModal({ title, message, confirmLabel = 'Confirm', tone = 'defaul
             type="button"
             onClick={onCancel}
             disabled={loading}
-            className="flex-1 py-3 bg-white/95 border-2 border-[#171717] text-[#171717] font-black rounded-xl shadow-[4px_4px_0_#000000] transition-all hover:bg-white active:translate-y-0.5 active:shadow-[1px_1px_0_#000000] disabled:opacity-60"
+            className="flex-1 py-3 bg-white/5 border border-white/10 text-white font-bold rounded-xl transition-all hover:bg-white/10 disabled:opacity-60 text-sm"
           >
             Cancel
           </button>
@@ -717,13 +718,13 @@ function ConfirmModal({ title, message, confirmLabel = 'Confirm', tone = 'defaul
             type="button"
             onClick={onConfirm}
             disabled={loading}
-            className={`flex-1 py-3 border-2 border-[#171717] font-black rounded-xl transition-all active:translate-y-0.5 active:shadow-[1px_1px_0_#000000] disabled:opacity-60 ${confirmClass}`}
+            className={`flex-1 py-3 font-bold rounded-xl transition-all border-none cursor-pointer disabled:opacity-60 text-sm ${confirmClass}`}
           >
             {loading ? 'Working...' : confirmLabel}
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 

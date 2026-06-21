@@ -1,4 +1,6 @@
 import { Shield, Mail, Lock, Globe, RefreshCw, Plus, X } from 'lucide-react';
+import { useState } from 'react';
+import Modal from '../../shared/components/Modal';
 import { CountrySelector, RegionSelector } from './GeoSelectors';
 import { getFlagEmoji, formatDateTime } from '../../shared/lib/helpers';
 
@@ -521,11 +523,13 @@ export function GeoAuthPanel({
       )}
 
       {/* MODALS */}
-      {showAddGeoExceptionModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-brand-plum border border-white/10 rounded-3xl p-8 w-full max-w-lg shadow-2xl relative space-y-6">
-            <h3 className="text-2xl font-bold text-white tracking-tight">Add User Geo Exception</h3>
-            <form onSubmit={handleSaveGeoException} className="space-y-4">
+      <Modal
+        isOpen={showAddGeoExceptionModal}
+        onClose={() => setShowAddGeoExceptionModal(false)}
+        title="Add User Geo Exception"
+        size="lg"
+      >
+        <form onSubmit={handleSaveGeoException} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">User Username / Email</label>
                 <input 
@@ -597,27 +601,15 @@ export function GeoAuthPanel({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
 
-      {editingRegion && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-brand-plum border border-white/10 rounded-3xl p-8 w-full max-w-2xl shadow-2xl relative space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center border-b border-white/5 pb-4">
-              <h3 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-                <Globe className="w-6 h-6 text-indigo-400" />
-                Edit Region: {editingRegion.name}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setEditingRegion(null)}
-                className="text-slate-400 hover:text-slate-200"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <div className="space-y-4">
+      <Modal
+        isOpen={!!editingRegion}
+        onClose={() => setEditingRegion(null)}
+        title={`Edit Region: ${editingRegion?.name || ''}`}
+        size="2xl"
+      >
+        <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Select Countries for this Region</label>
                 <div className="bg-brand-plum-dark/40 border border-white/5 p-4 rounded-2xl mb-4 font-mono text-xs text-slate-400 break-all max-h-20 overflow-y-auto">
@@ -649,9 +641,7 @@ export function GeoAuthPanel({
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }
