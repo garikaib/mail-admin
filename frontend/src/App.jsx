@@ -2,7 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { 
   Server, Shield, Key, Globe, LogOut, Search, Plus, Check, 
   AlertTriangle, RefreshCw, Trash2, Settings, Users, ChevronRight, 
-  Activity, Clock, Grid2X2, CheckCircle2, MessageCircle, Flower2, Sparkles, Menu, X, Copy
+  Activity, Clock, Grid2X2, CheckCircle2, MessageCircle, Flower2, Sparkles, Menu, X, Copy, Lock
 } from 'lucide-react';
 import useAuthStore from './store/useAuthStore';
 import useUiStore from './store/useUiStore';
