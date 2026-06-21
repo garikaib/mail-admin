@@ -26,11 +26,11 @@ export default function DomainsScreen() {
   // Load Cloudflare credentials on mount if empty
   useEffect(() => {
     if (token && credentials.length === 0) {
-      fetch('/api/credentials', {
+      fetch('/api/domains/credentials', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       .then(res => res.ok ? res.json() : [])
-      .then(data => setCredentials(data))
+      .then(data => setCredentials(Array.isArray(data) ? data : []))
       .catch(err => console.error(err));
     }
   }, [token, credentials.length, setCredentials]);
