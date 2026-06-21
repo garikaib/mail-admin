@@ -350,7 +350,7 @@ export default function DomainsScreen() {
         <div className="space-y-6 max-h-[75vh] overflow-y-auto pr-1">
           <div>
             <p className="text-sm text-slate-400 mt-1">
-                For domain <span className="text-brand-mint font-semibold">{dnsReviewData.domain}</span>. Review and customize the Cloudflare entries before provisioning.
+                For domain <span className="text-brand-mint font-semibold">{dnsReviewData?.domain}</span>. Review and customize the Cloudflare entries before provisioning.
               </p>
             </div>
 
@@ -638,7 +638,7 @@ export default function DomainsScreen() {
                     onChange={(e) => setNewMailboxLocal(e.target.value)}
                     className="flex-1 px-4 py-3 bg-transparent text-white focus:outline-none text-right pr-2"
                   />
-                  <span className="px-4 py-3 text-slate-400 bg-white/2 border-l border-white/5 font-semibold text-sm">@{selectedDomain.name}</span>
+                  <span className="px-4 py-3 text-slate-400 bg-white/2 border-l border-white/5 font-semibold text-sm">@{selectedDomain?.name}</span>
                 </div>
               </div>
 
@@ -734,7 +734,7 @@ export default function DomainsScreen() {
                     onChange={(e) => setNewAliasSource(e.target.value)}
                     className="flex-1 px-4 py-3 bg-transparent text-white focus:outline-none text-right pr-2"
                   />
-                  <span className="px-4 py-3 text-slate-400 bg-white/2 border-l border-white/5 font-semibold text-sm">@{selectedDomain.name}</span>
+                  <span className="px-4 py-3 text-slate-400 bg-white/2 border-l border-white/5 font-semibold text-sm">@{selectedDomain?.name}</span>
                 </div>
               </div>
 
@@ -781,7 +781,7 @@ export default function DomainsScreen() {
                 <input 
                   type="text" 
                   disabled
-                  value={editingAlias.source}
+                  value={editingAlias?.source || ''}
                   className="w-full px-4 py-3 bg-brand-plum-dark/50 border border-white/5 rounded-xl text-slate-500 cursor-not-allowed"
                 />
               </div>

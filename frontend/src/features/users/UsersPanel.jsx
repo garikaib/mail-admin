@@ -571,14 +571,14 @@ export function UsersPanel({
                   <input 
                     type="checkbox"
                     checked={editConsoleIsSuper}
-                    disabled={selectedConsoleUser.id === user?.id}
+                    disabled={selectedConsoleUser?.id === user?.id}
                     onChange={(e) => setEditConsoleIsSuper(e.target.checked)}
                     className="rounded w-4 h-4 accent-sky-400"
                   />
                   Is Superuser (Global Access)
                 </label>
                 <p className="text-[10px] text-slate-400 pl-6">
-                  {selectedConsoleUser.id === user?.id 
+                  {selectedConsoleUser?.id === user?.id 
                     ? "You cannot demote yourself to prevent lockout."
                     : "Superusers bypass all Casbin checks and have access to all console settings, domains, credentials, and audit logs automatically."}
                 </p>
@@ -596,7 +596,7 @@ export function UsersPanel({
                             <input 
                               type="checkbox"
                               checked={isChecked}
-                              disabled={selectedConsoleUser.id === user?.id}
+                              disabled={selectedConsoleUser?.id === user?.id}
                               onChange={(e) => {
                                 if (e.target.checked) {
                                   setEditConsoleRoles(prev => [...prev, role]);
@@ -611,7 +611,7 @@ export function UsersPanel({
                         );
                       })}
                     </div>
-                    {selectedConsoleUser.id === user?.id && (
+                    {selectedConsoleUser?.id === user?.id && (
                       <p className="text-[10px] text-slate-500 italic mt-1">You cannot modify your own assigned roles directly.</p>
                     )}
                   </div>
