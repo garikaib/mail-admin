@@ -54,6 +54,7 @@ export function GeoAuthPanel({
   handleDeleteGeoException,
 }) {
   const [now, setNow] = useState(new Date());
+  const [showExceptions, setShowExceptions] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -362,82 +363,93 @@ export function GeoAuthPanel({
       )}
 
       {geoSubTab === 'bans-exceptions' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left & Middle: Active Bans */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="glassmorphism-card rounded-2xl p-6 border border-white/5 space-y-4">
-              <h3 className="text-lg font-bold text-slate-100 pb-3 border-b border-white/5">
-                Active Firewall Port Bans (Nftables)
-              </h3>
+        <div className="space-y-6">
+          {/* Active Bans Card (Full Width) */}
+          <div className="glassmorphism-card rounded-2xl p-6 border border-white/5 space-y-4">
+            <h3 className="text-lg font-bold text-slate-100 pb-3 border-b border-white/5">
+              Active Firewall Port Bans (Nftables)
+            </h3>
 
-              <div className="overflow-auto max-h-[420px] border border-white/5 rounded-2xl custom-scrollbar">
-                <table className="w-full border-collapse text-left">
-                  <thead>
-                    <tr className="border-b border-white/5 bg-[#fffaf0] sticky top-0 z-10">
-                      <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">IP Address</th>
-                      <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Service</th>
-                      <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Banned At</th>
-                      <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Expires In</th>
-                      <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
+            <div className="overflow-auto max-h-[420px] border border-white/5 rounded-2xl custom-scrollbar">
+              <table className="w-full border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-white/5 bg-[#fffaf0] sticky top-0 z-10">
+                    <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">IP Address</th>
+                    <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Service</th>
+                    <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Banned At</th>
+                    <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Expires In</th>
+                    <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {geoBans.map(ban => (
+                    <tr key={ban.id} className="border-b border-white/5 text-sm hover:bg-white/2">
+                      <td className="p-4 font-mono text-slate-200">
+                        <span className="flex items-center gap-2">
+                          <span className="text-base" title={ban.country_code || 'UNKNOWN'}>
+                            {getFlagEmoji(ban.country_code)}
+                          </span>
+                          <span>{ban.ip_address}</span>
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                          ban.service === 'mail' 
+                            ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                            : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                        }`}>
+                          {ban.service}
+                        </span>
+                      </td>
+                      <td className="p-4 text-slate-400 text-xs font-mono">
+                        {formatDateTime(ban.banned_at)}
+                      </td>
+                      <td className="p-4 text-slate-400 text-xs font-mono">
+                        {formatExpiresIn(ban.expires_at)}
+                      </td>
+                      <td className="p-4 text-right">
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleClearGeoBan(ban.ip_address, ban.service)}
+                        >
+                          Clear Ban
+                        </Button>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {geoBans.map(ban => (
-                      <tr key={ban.id} className="border-b border-white/5 text-sm hover:bg-white/2">
-                        <td className="p-4 font-mono text-slate-200">
-                          <span className="flex items-center gap-2">
-                            <span className="text-base" title={ban.country_code || 'UNKNOWN'}>
-                              {getFlagEmoji(ban.country_code)}
-                            </span>
-                            <span>{ban.ip_address}</span>
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                            ban.service === 'mail' 
-                              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                              : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                          }`}>
-                            {ban.service}
-                          </span>
-                        </td>
-                        <td className="p-4 text-slate-400 text-xs font-mono">
-                          {formatDateTime(ban.banned_at)}
-                        </td>
-                        <td className="p-4 text-slate-400 text-xs font-mono">
-                          {formatExpiresIn(ban.expires_at)}
-                        </td>
-                        <td className="p-4 text-right">
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={() => handleClearGeoBan(ban.ip_address, ban.service)}
-                          >
-                            Clear Ban
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                    {geoBans.length === 0 && (
-                      <tr>
-                        <td colSpan="5" className="p-8 text-center text-slate-400">
-                          No active IP bans matching the policy rules.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                  {geoBans.length === 0 && (
+                    <tr>
+                      <td colSpan="5" className="p-8 text-center text-slate-400">
+                        No active IP bans matching the policy rules.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          {/* Right: Exceptions */}
-          <div className="space-y-6">
-            <div className="glassmorphism-card rounded-2xl p-6 border border-white/5 space-y-6">
-              <div className="flex justify-between items-center pb-3 border-b border-white/5">
-                <h3 className="text-lg font-bold text-slate-100">User Exceptions</h3>
+          {/* User Exceptions (Collapsible Card below active bans table) */}
+          <div className="glassmorphism-card rounded-2xl p-6 border border-white/5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-white/5">
+              <div 
+                className="flex items-center gap-3 cursor-pointer select-none"
+                onClick={() => setShowExceptions(!showExceptions)}
+              >
+                <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                  User Bypass Exceptions
+                  <span className="text-[10px] bg-brand-purple/20 text-brand-purple font-black px-2 py-0.5 rounded-full border border-brand-purple/30 font-mono">
+                    {geoExceptions.length}
+                  </span>
+                </h3>
+                <span className="text-slate-400 text-xs hover:text-slate-200 transition-colors">
+                  {showExceptions ? '(Click to collapse)' : '(Click to expand)'}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
                 <Button
-                  variant="primary"
+                  variant="outline"
                   size="sm"
                   icon={Plus}
                   onClick={() => {
@@ -446,47 +458,55 @@ export function GeoAuthPanel({
                     setShowAddGeoExceptionModal(true);
                   }}
                 >
-                  Add Exception
+                  Create Exception
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowExceptions(!showExceptions)}
+                >
+                  {showExceptions ? 'Hide List' : 'Show List'}
                 </Button>
               </div>
+            </div>
 
-              <div className="space-y-3">
+            {showExceptions && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
                 {geoExceptions.map(exc => (
-                  <div key={exc.username + '-' + exc.service} className="p-4 bg-brand-plum-dark border border-white/10 rounded-xl space-y-2">
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="flex-1 min-w-0">
+                  <div key={exc.username + '-' + exc.service} className="p-4 bg-brand-plum-dark border border-white/10 rounded-xl flex flex-col justify-between space-y-3">
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-start gap-2">
                         <span className="font-semibold text-slate-200 text-sm break-all">{exc.username}</span>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
                         <span className="text-[9px] uppercase tracking-wider font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 text-indigo-300">
                           {exc.service}
                         </span>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => handleDeleteGeoException(exc.username, exc.service, exc.allowed_countries, exc.expires_at)}
-                        >
-                          Delete
-                        </Button>
                       </div>
-                    </div>
-                    <div className="text-xs text-slate-400">
-                      <strong>Allowed Countries:</strong> {exc.allowed_countries}
-                    </div>
-                    {exc.expires_at && (
-                      <div className="text-[10px] text-slate-500 font-mono">
-                        <strong>Expires:</strong> {formatDateTime(exc.expires_at)}
+                      <div className="text-xs text-slate-400">
+                        <strong>Countries:</strong> {exc.allowed_countries}
                       </div>
-                    )}
+                      {exc.expires_at && (
+                        <div className="text-[10px] text-slate-500 font-mono">
+                          <strong>Expires:</strong> {formatDateTime(exc.expires_at)}
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      className="w-full justify-center"
+                      onClick={() => handleDeleteGeoException(exc.username, exc.service, exc.allowed_countries, exc.expires_at)}
+                    >
+                      Delete Exception
+                    </Button>
                   </div>
                 ))}
                 {geoExceptions.length === 0 && (
-                  <div className="text-center p-6 text-slate-400 text-sm">
-                    No user level exceptions defined.
+                  <div className="col-span-full text-center p-8 text-slate-400 text-sm">
+                    No bypass exceptions defined.
                   </div>
                 )}
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
