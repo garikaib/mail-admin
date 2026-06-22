@@ -1,5 +1,5 @@
 import { Shield, Mail, Lock, Globe, RefreshCw, Plus, X } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Modal from '../../shared/components/Modal';
 import Button from '../../shared/components/Button';
 import { CountrySelector, RegionSelector } from './GeoSelectors';
@@ -53,6 +53,40 @@ export function GeoAuthPanel({
   handleSaveGeoException,
   handleDeleteGeoException,
 }) {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 30000); // refresh every 30 seconds
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatExpiresIn = (expiresAtStr) => {
+    const expiresAt = new Date(expiresAtStr);
+    const diffMs = expiresAt.getTime() - now.getTime();
+
+    if (diffMs <= 0) return 'Expired';
+
+    const totalMins = Math.floor(diffMs / 60000);
+    const days = Math.floor(totalMins / 1440);
+    const hours = Math.floor((totalMins % 1440) / 60);
+    const mins = totalMins % 60;
+
+    const parts = [];
+    if (days > 0) {
+      parts.push(`${days} day${days > 1 ? 's' : ''}`);
+    }
+    if (hours > 0) {
+      parts.push(`${hours} hour${hours > 1 ? 's' : ''}`);
+    }
+    if (mins > 0 || parts.length === 0) {
+      parts.push(`${mins} min${mins > 1 ? 's' : ''}`);
+    }
+
+    return parts.join(', ');
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Title & Sub-tabs */}
@@ -343,7 +377,7 @@ export function GeoAuthPanel({
                       <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">IP Address</th>
                       <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Service</th>
                       <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Banned At</th>
-                      <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Expires At</th>
+                      <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Expires In</th>
                       <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
                     </tr>
                   </thead>
@@ -371,7 +405,7 @@ export function GeoAuthPanel({
                           {formatDateTime(ban.banned_at)}
                         </td>
                         <td className="p-4 text-slate-400 text-xs font-mono">
-                          {formatDateTime(ban.expires_at)}
+                          {formatExpiresIn(ban.expires_at)}
                         </td>
                         <td className="p-4 text-right">
                           <Button
