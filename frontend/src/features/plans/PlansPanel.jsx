@@ -3,6 +3,7 @@ import {
   Shield, Mail, Plus, Edit, Edit2, Trash2, Key, Globe, Search, RefreshCw, X
 } from 'lucide-react';
 import Modal from '../../shared/components/Modal';
+import Button from '../../shared/components/Button';
 import { api } from '../../shared/api/client';
 
 export function PlansPanel({
@@ -139,13 +140,13 @@ export function PlansPanel({
           <p className="text-sm text-slate-400 mt-1">Configure user limits, alias limits, and mailbox quotas for hosting domains.</p>
         </div>
         {hasPermission('plans:create') && (
-          <button 
+          <Button 
             onClick={handleAddPlanClick}
-            className="px-5 py-2.5 bg-brand-mint text-slate-950 rounded-xl font-black border-2 border-slate-950 shadow-[4px_4px_0_#151214] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer text-sm"
+            variant="primary"
+            icon={Plus}
           >
-            <Plus className="w-4 h-4" />
             Create New Plan
-          </button>
+          </Button>
         )}
       </div>
 
@@ -203,16 +204,20 @@ export function PlansPanel({
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       {hasPermission('plans:update') && (
-                        <button 
+                        <Button 
                           onClick={() => handleEditPlan(p)}
-                          className="p-2 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+                          variant="ghost"
+                          size="sm"
+                          icon={Edit2}
                           title="Edit Plan"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
+                          className="p-2"
+                        />
                       )}
                       {hasPermission('plans:delete') && (
-                        <button 
+                        <Button 
+                          variant="danger"
+                          size="sm"
+                          icon={Trash2}
                           onClick={() => {
                             setConfirmModal({
                               title: "Delete Mail Plan?",
@@ -220,11 +225,9 @@ export function PlansPanel({
                               onConfirm: () => handleDeletePlan(p.id)
                             });
                           }}
-                          className="p-2 rounded-lg bg-white/5 border border-white/10 text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
                           title="Delete Plan"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                          className="p-2"
+                        />
                       )}
                     </div>
                   </td>
@@ -316,19 +319,20 @@ export function PlansPanel({
               </div>
 
               <div className="flex gap-3 pt-4">
-                <button 
-                  type="button" 
+                <Button 
+                  variant="outline"
+                  className="flex-1"
                   onClick={() => setShowAddPlanModal(false)}
-                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl font-bold transition-all cursor-pointer text-center text-sm"
                 >
                   Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="flex-1 py-3 bg-brand-mint text-slate-950 hover:bg-opacity-90 rounded-xl font-black border-2 border-slate-950 shadow-[4px_4px_0_#151214] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer text-center text-sm"
+                </Button>
+                <Button 
+                  type="submit"
+                  variant="primary"
+                  className="flex-1"
                 >
                   Create Plan
-                </button>
+                </Button>
               </div>
             </form>
       </Modal>
@@ -404,19 +408,20 @@ export function PlansPanel({
               </div>
 
               <div className="flex gap-3 pt-4">
-                <button 
-                  type="button" 
+                <Button 
+                  variant="outline"
+                  className="flex-1"
                   onClick={() => { setShowEditPlanModal(false); resetPlanForm(); }}
-                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl font-bold transition-all cursor-pointer text-center text-sm"
                 >
                   Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="flex-1 py-3 bg-brand-mint text-slate-950 hover:bg-opacity-90 rounded-xl font-black border-2 border-slate-950 shadow-[4px_4px_0_#151214] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer text-center text-sm"
+                </Button>
+                <Button 
+                  type="submit"
+                  variant="primary"
+                  className="flex-1"
                 >
                   Save Changes
-                </button>
+                </Button>
               </div>
             </form>
       </Modal>

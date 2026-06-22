@@ -3,6 +3,7 @@ import { Plus, Search, Edit2, Trash2, X, Copy, Sparkles, AlertTriangle } from 'l
 import { api } from '../../shared/api/client';
 import { formatDateOnly, generateSecurePassword } from '../../shared/lib/helpers';
 import Modal from '../../shared/components/Modal';
+import Button from '../../shared/components/Button';
 
 export function UsersPanel({
   user,
@@ -154,7 +155,7 @@ export function UsersPanel({
           <h2 className="text-3xl font-extrabold text-white tracking-tight">Console Administrators</h2>
           <p className="text-slate-400 text-sm mt-1">Manage system administrators, Casbin roles, and scoped domain authorization.</p>
         </div>
-        <button 
+        <Button 
           onClick={() => {
             setAddConsoleUsername('');
             setAddConsolePassword('');
@@ -163,11 +164,11 @@ export function UsersPanel({
             setAddConsoleDomains([]);
             setShowAddConsoleUserModal(true);
           }}
-          className="bg-sky-400 text-slate-950 border-2 border-slate-950 font-black px-4 py-2.5 rounded-xl shadow-[4px_4px_0_#151214] hover:bg-sky-300 transition-all flex items-center gap-2 cursor-pointer active:translate-x-[1px] active:translate-y-[1px] active:shadow-none text-sm font-bold"
+          variant="secondary"
+          icon={Plus}
         >
-          <Plus className="w-4 h-4 stroke-[3px]" />
           Add Console User
-        </button>
+        </Button>
       </div>
 
       {/* Messages */}
@@ -282,28 +283,29 @@ export function UsersPanel({
                         )}
                       </td>
                       <td className="p-4">
-                        <button
+                        <Button
                           disabled={isSelf}
+                          variant={u.is_active ? 'primary' : 'danger'}
+                          size="sm"
                           onClick={() => handleUpdateConsoleUser(u.id, { is_active: !u.is_active })}
-                          className={`px-3 py-1 rounded-xl text-xs font-black transition-all border-2 border-slate-950 shadow-[2px_2px_0_#151214] active:translate-y-0.5 active:shadow-none hover:opacity-95 ${
-                            u.is_active 
-                              ? 'bg-brand-mint text-slate-950' 
-                              : 'bg-red-500/20 text-red-400 border-red-500'
-                          } ${isSelf ? 'opacity-50 cursor-not-allowed shadow-none translate-y-0' : 'cursor-pointer'}`}
                         >
                           {u.is_active ? 'Active' : 'Suspended'}
-                        </button>
+                        </Button>
                       </td>
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button 
+                          <Button 
                             onClick={() => handleEditConsoleUser(u)}
-                            className="p-2 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+                            variant="ghost"
+                            size="sm"
+                            icon={Edit2}
                             title="Edit User Roles & Scopes"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button 
+                            className="p-2"
+                          />
+                          <Button 
+                            variant="danger"
+                            size="sm"
+                            icon={Trash2}
                             onClick={() => {
                               if (isSelf) {
                                 setErrorMsg("You cannot delete your own account.");
@@ -317,14 +319,10 @@ export function UsersPanel({
                                 onConfirm: () => handleDeleteConsoleUser(u.id)
                               });
                             }}
-                            className={`p-2 rounded-lg bg-white/5 border border-white/10 text-red-400 hover:bg-red-500/10 transition-all ${
-                              isSelf ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
-                            }`}
                             title="Delete Console User"
                             disabled={isSelf}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                            className="p-2"
+                          />
                         </div>
                       </td>
                     </tr>
@@ -393,20 +391,20 @@ export function UsersPanel({
                       </button>
                     )}
                   </div>
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    icon={Sparkles}
                     onClick={() => {
                       const pwd = generateSecurePassword();
                       setAddConsolePassword(pwd);
                       navigator.clipboard.writeText(pwd);
                       setSuccessMsg("Generated secure password and copied to clipboard!");
                     }}
-                    className="px-4 py-3 bg-sky-400 text-slate-950 font-bold border-2 border-slate-950 rounded-xl shadow-[2px_2px_0_#151214] hover:bg-sky-300 transition-all flex items-center gap-1.5 cursor-pointer active:translate-y-0.5 active:shadow-none text-xs"
                     title="Generate secure password"
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
                     Generate
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -485,19 +483,20 @@ export function UsersPanel({
               )}
 
               <div className="flex gap-4 pt-4">
-                <button 
-                  type="button" 
+                <Button 
+                  variant="outline"
+                  className="flex-1"
                   onClick={() => setShowAddConsoleUserModal(false)}
-                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-xl text-sm transition-all"
                 >
                   Cancel
-                </button>
-                <button 
+                </Button>
+                <Button 
                   type="submit"
-                  className="flex-1 py-3 bg-sky-400 hover:bg-sky-300 text-slate-950 font-bold rounded-xl text-sm transition-all cursor-pointer font-black"
+                  variant="primary"
+                  className="flex-1"
                 >
                   Create Account
-                </button>
+                </Button>
               </div>
             </form>
         </div>
@@ -549,20 +548,20 @@ export function UsersPanel({
                       </button>
                     )}
                   </div>
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    icon={Sparkles}
                     onClick={() => {
                       const pwd = generateSecurePassword();
                       setEditConsolePassword(pwd);
                       navigator.clipboard.writeText(pwd);
                       setSuccessMsg("Generated secure password and copied to clipboard!");
                     }}
-                    className="px-4 py-3 bg-sky-400 text-slate-950 font-bold border-2 border-slate-950 rounded-xl shadow-[2px_2px_0_#151214] hover:bg-sky-300 transition-all flex items-center gap-1.5 cursor-pointer active:translate-y-0.5 active:shadow-none text-xs"
                     title="Generate secure password"
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
                     Generate
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -648,19 +647,20 @@ export function UsersPanel({
               )}
 
               <div className="flex gap-4 pt-4">
-                <button 
-                  type="button" 
+                <Button 
+                  variant="outline"
+                  className="flex-1"
                   onClick={handleCloseEditConsoleUserModal}
-                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-xl text-sm transition-all"
                 >
                   Cancel
-                </button>
-                <button 
+                </Button>
+                <Button 
                   type="submit"
-                  className="flex-1 py-3 bg-sky-400 hover:bg-sky-300 text-slate-950 font-bold rounded-xl text-sm transition-all cursor-pointer font-black"
+                  variant="primary"
+                  className="flex-1"
                 >
                   Save Changes
-                </button>
+                </Button>
               </div>
             </form>
         </div>

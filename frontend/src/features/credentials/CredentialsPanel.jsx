@@ -3,6 +3,7 @@ import {
   ArrowLeft, Sliders, Mail, Plus, Edit, Edit2, Trash2, Cloud, CloudOff, RefreshCw, Lock, Search, Globe
 } from 'lucide-react';
 import { formatDateOnly } from '../../shared/lib/helpers';
+import Button from '../../shared/components/Button';
 
 
 
@@ -77,17 +78,18 @@ export function CredentialsPanel({
         {/* DNS Records Panel for Selected Zone */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-brand-plum p-6 rounded-2xl border border-white/5">
           <div className="space-y-2">
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={ArrowLeft}
               onClick={() => {
                 setSelectedZone(null);
                 setSelectedCredential(null);
                 window.history.pushState(null, '', '/credentials');
               }}
-              className="flex items-center gap-1.5 text-xs text-brand-mint hover:underline font-bold bg-transparent border-none cursor-pointer"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
               Back to Domains Directory
-            </button>
+            </Button>
             
             <div className="flex items-center gap-3">
               <h2 className="text-2xl font-bold text-white tracking-tight">DNS Settings: {selectedZone.name}</h2>
@@ -104,7 +106,10 @@ export function CredentialsPanel({
           
           <div className="flex items-center gap-3 self-end md:self-center">
             {isMatched(selectedZone.name) ? (
-              <button
+              <Button
+                variant="primary"
+                size="sm"
+                icon={Mail}
                 onClick={() => {
                   const dom = getMatchedDomain(selectedZone.name);
                   setSelectedDomain(dom);
@@ -112,13 +117,14 @@ export function CredentialsPanel({
                   window.history.pushState(null, '', `/domains?domain=${dom.name}`);
                   handleSelectDomain(dom);
                 }}
-                className="bg-brand-mint hover:bg-brand-mint-hover text-brand-plum font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer border-none"
               >
-                <Mail className="w-3.5 h-3.5" />
                 Manage Mailboxes
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button
+                variant="outline"
+                size="sm"
+                icon={Plus}
                 onClick={() => {
                   setNewDomainName(selectedZone.name);
                   setSelectedCredId(selectedZone.credential_id);
@@ -126,15 +132,16 @@ export function CredentialsPanel({
                   setActiveTab('domains');
                   setShowAddDomainModal(true);
                 }}
-                className="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5" />
                 Provision Mail Server
-              </button>
+              </Button>
             )}
             
             {hasPermission('credentials:create') && (
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={Plus}
                 onClick={() => {
                   setDnsRecordType('A');
                   setDnsRecordName('');
@@ -144,11 +151,9 @@ export function CredentialsPanel({
                   setDnsRecordTtl('3600');
                   setShowAddDnsRecordModal(true);
                 }}
-                className="bg-brand-yellow hover:bg-brand-yellow-hover text-brand-plum font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer border-none"
               >
-                <Plus className="w-3.5 h-3.5 stroke-[3px]" />
                 Add Record
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -230,7 +235,10 @@ export function CredentialsPanel({
                             )}
                             {hasPermission('credentials:create') && (
                               <>
-                                <button
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  icon={Edit}
                                   onClick={() => {
                                     setEditingDnsRecord(rec);
                                     setDnsRecordType(rec.type);
@@ -252,12 +260,12 @@ export function CredentialsPanel({
                                       setShowEditDnsRecordModal(true);
                                     }
                                   }}
-                                  className="text-slate-400 hover:text-white p-1.5 rounded hover:bg-white/5 transition-colors cursor-pointer bg-transparent border-none"
                                   title="Edit Record"
-                                >
-                                  <Edit className="w-3.5 h-3.5" />
-                                </button>
-                                <button
+                                />
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  icon={Trash2}
                                   onClick={() => {
                                     const performDelete = () => handleDeleteDnsRecord(rec.id);
                                     
@@ -271,11 +279,8 @@ export function CredentialsPanel({
                                       onConfirm: performDelete
                                     });
                                   }}
-                                  className="text-red-400 hover:text-red-300 p-1.5 rounded hover:bg-red-500/10 transition-colors cursor-pointer bg-transparent border-none"
                                   title="Delete Record"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                />
                               </>
                             )}
                           </div>
@@ -304,14 +309,21 @@ export function CredentialsPanel({
           <p className="text-slate-400 text-sm mt-1">Manage global api credentials used to securely generate tokens for DNS updates.</p>
         </div>
         <div className="flex gap-3">
-          <button type="button" onClick={handleScanZoneOwnership} disabled={loading} className="bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-sm px-5 py-2.5 rounded-full flex items-center gap-2 transition-all cursor-pointer disabled:opacity-60">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          <Button
+            variant="outline"
+            icon={RefreshCw}
+            loading={loading}
+            onClick={handleScanZoneOwnership}
+          >
             Scan Zones
-          </button>
-          <button type="button" onClick={() => { setNewCredEmail('gbdzoma@gmail.com'); setShowAddCredModal(true); }} className="bg-brand-yellow hover:bg-brand-yellow-hover text-brand-plum font-bold text-sm px-5 py-2.5 rounded-full flex items-center gap-2 transition-all cursor-pointer border-none">
-            <Plus className="w-4 h-4 stroke-[3px]" />
+          </Button>
+          <Button
+            variant="secondary"
+            icon={Plus}
+            onClick={() => { setNewCredEmail('gbdzoma@gmail.com'); setShowAddCredModal(true); }}
+          >
             Add Credential
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -334,12 +346,20 @@ export function CredentialsPanel({
                   <td className="p-4 text-xs text-slate-400">{formatDateOnly(c.created_at)}</td>
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button type="button" onClick={() => { setEditingCredential(c); setEditCredLabel(c.label); setEditCredEmail(c.email); setEditCredKey(''); setShowEditCredModal(true); }} className="text-brand-mint hover:text-white p-2 rounded-lg hover:bg-brand-mint/10 transition-colors bg-transparent border-none cursor-pointer" title="Edit Credential / Rotate Key">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button type="button" onClick={() => handleDeleteCredential(c.id)} className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/10 transition-colors bg-transparent border-none cursor-pointer" title="Delete Credential">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={Edit2}
+                        onClick={() => { setEditingCredential(c); setEditCredLabel(c.label); setEditCredEmail(c.email); setEditCredKey(''); setShowEditCredModal(true); }}
+                        title="Edit Credential / Rotate Key"
+                      />
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        icon={Trash2}
+                        onClick={() => handleDeleteCredential(c.id)}
+                        title="Delete Credential"
+                      />
                     </div>
                   </td>
                 </tr>
@@ -408,10 +428,38 @@ export function CredentialsPanel({
                           </div>
                         </div>
                         <div className="flex items-center gap-2 pt-2 border-t border-white/5">
-                          <button onClick={() => { const matchingCred = credentials.find(c => c.id === zone.credential_id); setSelectedCredential(matchingCred); setSelectedZone(zone); window.history.pushState(null, '', `/credentials?cred_id=${zone.credential_id}&zone_id=${zone.zone_id}`); fetchDnsRecords(zone.credential_id, zone.zone_id); }} className="flex-1 py-1.5 bg-brand-purple hover:bg-brand-purple/80 text-white text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 border-none">
-                            <Sliders className="w-3 h-3" /> DNS Records
-                          </button>
-                          {matched ? <button onClick={() => { setSelectedDomain(localDomain); setActiveTab('domains'); window.history.pushState(null, '', `/domains?domain=${localDomain.name}`); handleSelectDomain(localDomain); }} className="py-1.5 px-3 bg-brand-mint hover:bg-brand-mint-hover text-brand-plum text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 border-none" title="Manage Mailboxes / Add Emails"><Mail className="w-3 h-3" /> Emails</button> : <button onClick={() => { setNewDomainName(zone.name); setSelectedCredId(zone.credential_id); setSelectedPlanId(''); setActiveTab('domains'); setShowAddDomainModal(true); }} className="py-1.5 px-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1" title="Provision Mail Server"><Plus className="w-3 h-3" /> Provision</button>}
+                          <Button
+                            variant="purple"
+                            size="sm"
+                            icon={Sliders}
+                            className="flex-1 rounded-lg py-1.5"
+                            onClick={() => { const matchingCred = credentials.find(c => c.id === zone.credential_id); setSelectedCredential(matchingCred); setSelectedZone(zone); window.history.pushState(null, '', `/credentials?cred_id=${zone.credential_id}&zone_id=${zone.zone_id}`); fetchDnsRecords(zone.credential_id, zone.zone_id); }}
+                          >
+                            DNS Records
+                          </Button>
+                          {matched ? (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              icon={Mail}
+                              className="rounded-lg py-1.5 px-3"
+                              onClick={() => { setSelectedDomain(localDomain); setActiveTab('domains'); window.history.pushState(null, '', `/domains?domain=${localDomain.name}`); handleSelectDomain(localDomain); }}
+                              title="Manage Mailboxes / Add Emails"
+                            >
+                              Emails
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              icon={Plus}
+                              className="rounded-lg py-1.5 px-3"
+                              onClick={() => { setNewDomainName(zone.name); setSelectedCredId(zone.credential_id); setSelectedPlanId(''); setActiveTab('domains'); setShowAddDomainModal(true); }}
+                              title="Provision Mail Server"
+                            >
+                              Provision
+                            </Button>
+                          )}
                         </div>
                       </div>
                     );

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Shield, RefreshCw, AlertTriangle, Sparkles, CheckCircle2, Trash2, Check } from 'lucide-react';
 import { formatDateTime } from '../../shared/lib/helpers';
 import { api } from '../../shared/api/client';
+import Button from '../../shared/components/Button';
 
 export function RegistrationsPanel({ credentials, hasPermission }) {
   // State variables for Registrations Panel
@@ -298,39 +299,31 @@ export function RegistrationsPanel({ credentials, hasPermission }) {
             </h3>
 
             {/* Mode Toggle */}
-            <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 text-xs w-fit">
-              <button
-                type="button"
+            <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 text-xs w-fit gap-1">
+              <Button
+                variant={!isBulkReg ? 'purple' : 'ghost'}
+                size="sm"
                 onClick={() => {
                   setIsBulkReg(false);
                   setRegAction('N');
                   setSearchResult(null);
                   setCfResult(null);
                 }}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                  !isBulkReg
-                    ? 'bg-rose-400 text-slate-950 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
               >
                 Single Domain Check
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant={isBulkReg ? 'purple' : 'ghost'}
+                size="sm"
                 onClick={() => {
                   setIsBulkReg(true);
                   setRegAction('bulk_edit');
                   setSearchResult(null);
                   setCfResult(null);
                 }}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                  isBulkReg
-                    ? 'bg-rose-400 text-slate-950 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
               >
                 Bulk Edit
-              </button>
+              </Button>
             </div>
 
             {!isBulkReg ? (
@@ -353,13 +346,13 @@ export function RegistrationsPanel({ credentials, hasPermission }) {
                       }}
                       className="flex-1 px-4 py-3 bg-brand-plum-dark border border-white/10 rounded-xl text-white focus:outline-none focus:border-rose-400 font-mono text-sm"
                     />
-                    <button
+                    <Button
                       type="submit"
-                      disabled={searchLoading}
-                      className="px-6 py-3 bg-brand-yellow text-slate-950 rounded-xl font-black border-2 border-slate-950 shadow-[3px_3px_0_#151214] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none hover:opacity-95 transition-all text-sm flex items-center gap-2 cursor-pointer"
+                      variant="secondary"
+                      loading={searchLoading}
                     >
-                      {searchLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Check'}
-                    </button>
+                      Check
+                    </Button>
                   </div>
                 </form>
 
@@ -415,13 +408,14 @@ export function RegistrationsPanel({ credentials, hasPermission }) {
                         </select>
                       </div>
 
-                      <button
+                      <Button
                         type="submit"
-                        disabled={cfLoading || !cfCredentialId}
-                        className="px-6 py-3 bg-brand-mint text-slate-950 rounded-xl font-black border-2 border-slate-950 shadow-[3px_3px_0_#151214] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none hover:opacity-95 transition-all text-sm flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        variant="primary"
+                        disabled={!cfCredentialId}
+                        loading={cfLoading}
                       >
-                        {cfLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Retrieve DNS Details'}
-                      </button>
+                        Retrieve DNS Details
+                      </Button>
                     </form>
                   </div>
                 )}
@@ -562,13 +556,14 @@ export function RegistrationsPanel({ credentials, hasPermission }) {
                         </div>
                       </div>
 
-                      <button
+                      <Button
                         type="submit"
-                        disabled={submitLoading}
-                        className="w-full py-3 bg-brand-pink text-slate-950 rounded-xl font-black border-2 border-slate-950 shadow-[4px_4px_0_#151214] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none hover:opacity-95 transition-all text-sm flex items-center justify-center gap-2 cursor-pointer"
+                        variant="primary"
+                        loading={submitLoading}
+                        className="w-full justify-center"
                       >
-                        {submitLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Submit ZISPA Email Application'}
-                      </button>
+                        Submit ZISPA Email Application
+                      </Button>
                     </form>
                   </div>
                 )}
@@ -717,13 +712,14 @@ export function RegistrationsPanel({ credentials, hasPermission }) {
                   </div>
                 </div>
 
-                <button
+                <Button
                   type="submit"
-                  disabled={bulkLoading}
-                  className="w-full py-3 bg-brand-pink text-slate-950 rounded-xl font-black border-2 border-slate-950 shadow-[4px_4px_0_#151214] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none hover:opacity-95 transition-all text-sm flex items-center justify-center gap-2 cursor-pointer"
+                  variant="primary"
+                  loading={bulkLoading}
+                  className="w-full justify-center"
                 >
-                  {bulkLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Process Bulk Application'}
-                </button>
+                  Process Bulk Application
+                </Button>
 
                 {/* Bulk Results Readout */}
                 {bulkResult && (
@@ -779,32 +775,29 @@ export function RegistrationsPanel({ credentials, hasPermission }) {
           <h3 className="text-xl font-extrabold text-white tracking-tight">Recent Registration Submissions</h3>
           <div className="flex items-center gap-3">
             {/* Filter tabs */}
-            <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 text-xs">
+            <div className="flex gap-2">
               {['all', 'pending', 'active'].map(f => (
-                <button
+                <Button
                   key={f}
-                  type="button"
+                  variant={regFilter === f ? 'purple' : 'ghost'}
+                  size="sm"
                   onClick={() => setRegFilter(f)}
-                  className={`px-3 py-1.5 rounded-lg font-bold capitalize transition-all cursor-pointer ${
-                    regFilter === f
-                      ? 'bg-rose-400 text-slate-950 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
+                  className="capitalize"
                 >
                   {f}
-                </button>
+                </Button>
               ))}
             </div>
             {/* Poll All Button */}
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={RefreshCw}
               onClick={handlePollAllRegistrations}
-              className="px-4 py-2 bg-brand-yellow text-slate-950 rounded-xl font-black border-2 border-slate-950 shadow-[2px_2px_0_#151214] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none hover:opacity-95 transition-all text-xs flex items-center gap-1.5 cursor-pointer"
               title="Query DNS for all pending registrations"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
               Verify All Pending
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -865,33 +858,33 @@ export function RegistrationsPanel({ credentials, hasPermission }) {
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         {r.status !== 'active' && (
-                          <button
-                            type="button"
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            icon={CheckCircle2}
                             onClick={() => handlePollRegistration(r.id)}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all cursor-pointer text-xs flex items-center gap-1 font-bold animate-pulse"
                             title="Verify if domain is active on DNS"
+                            className="animate-pulse"
                           >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
                             Verify DNS
-                          </button>
+                          </Button>
                         )}
-                        <button
-                          type="button"
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          icon={RefreshCw}
                           onClick={() => handleResendRegistrationEmail(r.id)}
-                          className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer text-xs flex items-center gap-1 font-bold"
                           title="Resend ZISPA template email"
                         >
-                          <RefreshCw className="w-3.5 h-3.5" />
                           Resend
-                        </button>
-                        <button
-                          type="button"
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          icon={Trash2}
                           onClick={() => handleDeleteRegistration(r.id)}
-                          className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
                           title="Delete Registration Record"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        />
                       </div>
                     </td>
                   </tr>

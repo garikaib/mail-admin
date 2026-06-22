@@ -1,6 +1,7 @@
 import { Shield, Mail, Lock, Globe, RefreshCw, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import Modal from '../../shared/components/Modal';
+import Button from '../../shared/components/Button';
 import { CountrySelector, RegionSelector } from './GeoSelectors';
 import { getFlagEmoji, formatDateTime } from '../../shared/lib/helpers';
 
@@ -67,54 +68,38 @@ export function GeoAuthPanel({
         </div>
 
         <div className="flex flex-wrap gap-2 border-b border-white/5 pb-2">
-          <button
-            type="button"
+          <Button
+            variant={geoSubTab === 'mail' ? 'purple' : 'ghost'}
+            size="sm"
+            icon={Mail}
             onClick={() => setGeoSubTab('mail')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-              geoSubTab === 'mail'
-                ? 'bg-brand-purple/10 text-brand-purple border border-brand-purple/20'
-                : 'text-slate-400 hover:text-white'
-            }`}
           >
-            <Mail className="w-3.5 h-3.5" />
             Mail Geofencing
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant={geoSubTab === 'ssh' ? 'purple' : 'ghost'}
+            size="sm"
+            icon={Lock}
             onClick={() => setGeoSubTab('ssh')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-              geoSubTab === 'ssh'
-                ? 'bg-brand-purple/10 text-brand-purple border border-brand-purple/20'
-                : 'text-slate-400 hover:text-white'
-            }`}
           >
-            <Lock className="w-3.5 h-3.5" />
             SSH Geofencing
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant={geoSubTab === 'bans-exceptions' ? 'purple' : 'ghost'}
+            size="sm"
+            icon={Shield}
             onClick={() => setGeoSubTab('bans-exceptions')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-              geoSubTab === 'bans-exceptions'
-                ? 'bg-brand-purple/10 text-brand-purple border border-brand-purple/20'
-                : 'text-slate-400 hover:text-white'
-            }`}
           >
-            <Shield className="w-3.5 h-3.5" />
             Bans & Exceptions
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant={geoSubTab === 'regions' ? 'purple' : 'ghost'}
+            size="sm"
+            icon={Globe}
             onClick={() => setGeoSubTab('regions')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-              geoSubTab === 'regions'
-                ? 'bg-brand-purple/10 text-brand-purple border border-brand-purple/20'
-                : 'text-slate-400 hover:text-white'
-            }`}
           >
-            <Globe className="w-3.5 h-3.5" />
             Region Definitions
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -220,13 +205,15 @@ export function GeoAuthPanel({
               </div>
             </div>
 
-            <button
+            <Button
               type="submit"
-              disabled={loading || !selectedGeoDomainId}
-              className="px-6 py-3 bg-brand-mint text-slate-950 rounded-xl font-black border-2 border-slate-950 shadow-[3px_3px_0_#151214] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none hover:opacity-95 transition-all text-sm flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              variant="primary"
+              disabled={!selectedGeoDomainId}
+              loading={loading}
+              size="lg"
             >
-              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Save Mail Policy'}
-            </button>
+              Save Mail Policy
+            </Button>
           </form>
         </div>
       )}
@@ -306,13 +293,14 @@ export function GeoAuthPanel({
                 </div>
               </div>
 
-              <button
+              <Button
                 type="submit"
-                disabled={loading}
-                className="px-6 py-3 bg-brand-mint text-slate-950 rounded-xl font-black border-2 border-slate-950 shadow-[3px_3px_0_#151214] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none hover:opacity-95 transition-all text-sm flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                variant="primary"
+                loading={loading}
+                size="lg"
               >
-                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Save SSH Policy'}
-              </button>
+                Save SSH Policy
+              </Button>
             </form>
           </div>
 
@@ -320,13 +308,13 @@ export function GeoAuthPanel({
           <div className="glassmorphism-card rounded-2xl p-6 border border-white/5 space-y-4">
             <div className="flex justify-between items-center pb-3 border-b border-white/5">
               <h3 className="text-lg font-bold text-slate-100">SSH Connection & Auth Logs (Past 3 Days)</h3>
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={fetchGeoData}
-                className="text-xs bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300 px-3 py-1.5 rounded-xl font-bold cursor-pointer transition-all"
               >
                 Refresh Logs
-              </button>
+              </Button>
             </div>
             <div className="bg-brand-plum-dark/80 rounded-xl p-4 border border-white/10 font-mono text-xs text-slate-300 overflow-auto max-h-96 custom-scrollbar">
               {sshLogs ? (
@@ -386,13 +374,13 @@ export function GeoAuthPanel({
                           {formatDateTime(ban.expires_at)}
                         </td>
                         <td className="p-4 text-right">
-                          <button
-                            type="button"
+                          <Button
+                            variant="danger"
+                            size="sm"
                             onClick={() => handleClearGeoBan(ban.ip_address, ban.service)}
-                            className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all cursor-pointer text-xs font-bold"
                           >
                             Clear Ban
-                          </button>
+                          </Button>
                         </td>
                       </tr>
                     ))}
@@ -414,18 +402,18 @@ export function GeoAuthPanel({
             <div className="glassmorphism-card rounded-2xl p-6 border border-white/5 space-y-6">
               <div className="flex justify-between items-center pb-3 border-b border-white/5">
                 <h3 className="text-lg font-bold text-slate-100">User Exceptions</h3>
-                <button
-                  type="button"
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={Plus}
                   onClick={() => {
                     if (hasPermission('geo_mail:view')) setGeoExcService('mail');
                     else setGeoExcService('ssh');
                     setShowAddGeoExceptionModal(true);
                   }}
-                  className="bg-brand-mint text-brand-plum hover:opacity-95 font-bold text-xs px-3 py-1.5 rounded-full flex items-center gap-1 transition-all cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5 stroke-[3px]" />
                   Add Exception
-                </button>
+                </Button>
               </div>
 
               <div className="space-y-3">
@@ -439,13 +427,13 @@ export function GeoAuthPanel({
                         <span className="text-[9px] uppercase tracking-wider font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 text-indigo-300">
                           {exc.service}
                         </span>
-                        <button
-                          type="button"
+                        <Button
+                          variant="danger"
+                          size="sm"
                           onClick={() => handleDeleteGeoException(exc.username, exc.service, exc.allowed_countries, exc.expires_at)}
-                          className="px-2 py-1 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all cursor-pointer text-[10px] font-bold"
                         >
                           Delete
-                        </button>
+                        </Button>
                       </div>
                     </div>
                     <div className="text-xs text-slate-400">
@@ -473,13 +461,13 @@ export function GeoAuthPanel({
         <div className="glassmorphism-card rounded-2xl p-6 border border-white/5 space-y-4">
           <h3 className="text-lg font-bold text-slate-100 pb-3 border-b border-white/5 flex justify-between items-center">
             <span>Dynamic Geofence Region Definitions</span>
-            <button
-              type="button"
+            <Button
+              variant="danger"
+              size="sm"
               onClick={handleResetRegions}
-              className="text-xs bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 px-3 py-1.5 rounded-xl font-bold cursor-pointer transition-all"
             >
               Reset Templates
-            </button>
+            </Button>
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {geoRegions.map(reg => (
@@ -506,16 +494,17 @@ export function GeoAuthPanel({
                   </div>
                 </div>
                 
-                <button
-                  type="button"
+                <Button
+                  variant="purple"
+                  size="sm"
+                  className="w-full"
                   onClick={() => {
                     setEditingRegion(reg);
                     setEditingRegionCountries(reg.countries);
                   }}
-                  className="w-full py-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 hover:border-indigo-500/30 text-indigo-300 rounded-xl text-xs font-bold transition-all cursor-pointer text-center"
                 >
                   Edit Region Countries
-                </button>
+                </Button>
               </div>
             ))}
           </div>
@@ -584,21 +573,21 @@ export function GeoAuthPanel({
               </div>
 
               <div className="flex gap-4 pt-4">
-                <button 
-                  type="button" 
+                <Button 
+                  variant="outline"
+                  className="flex-1"
                   onClick={() => setShowAddGeoExceptionModal(false)}
-                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-xl text-sm transition-all"
                 >
                   Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={loading}
-                  className="flex-1 py-3 bg-brand-mint hover:bg-brand-mint-hover text-brand-plum font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+                </Button>
+                <Button 
+                  type="submit"
+                  variant="primary"
+                  loading={loading}
+                  className="flex-1"
                 >
-                  {loading && <RefreshCw className="w-4 h-4 animate-spin" />}
                   Create Exception
-                </button>
+                </Button>
               </div>
             </form>
       </Modal>
@@ -622,23 +611,23 @@ export function GeoAuthPanel({
                 />
               </div>
               <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setEditingRegion(null)}
-                  className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
                 >
                   Cancel
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={() => {
                     handleUpdateRegion(editingRegion.name, editingRegionCountries);
                     setEditingRegion(null);
                   }}
-                  className="px-5 py-2.5 bg-brand-mint text-slate-950 rounded-xl text-xs font-bold hover:opacity-95 transition-all cursor-pointer"
                 >
                   Save Changes
-                </button>
+                </Button>
               </div>
             </div>
       </Modal>

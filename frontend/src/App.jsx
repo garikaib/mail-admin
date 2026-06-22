@@ -9,6 +9,7 @@ import useUiStore from './store/useUiStore';
 import useDomainsStore from './store/useDomainsStore';
 import { usePermissions } from './shared/lib/usePermissions';
 import Modal from './shared/components/Modal';
+import Button from './shared/components/Button';
 
 const API_BASE = '/api';
 
@@ -472,22 +473,26 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button 
+            <Button 
+              variant="outline"
+              size="sm"
+              icon={Key}
               onClick={() => setShowChangePasswordModal(true)}
-              className="w-1/2 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white/5 hover:bg-white/10 hover:text-white text-slate-400 transition-colors text-xs font-bold border border-white/5 cursor-pointer"
+              className="w-1/2 justify-center"
               title="Change Password"
             >
-              <Key className="w-4 h-4" />
               Password
-            </button>
-            <button 
+            </Button>
+            <Button 
+              variant="danger"
+              size="sm"
+              icon={LogOut}
               onClick={handleLogout}
-              className="w-1/2 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white/5 hover:bg-red-500/10 hover:text-red-400 text-slate-400 transition-colors text-xs font-bold border border-white/5 cursor-pointer"
+              className="w-1/2 justify-center"
               title="Logout"
             >
-              <LogOut className="w-4 h-4" />
               Logout
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -534,12 +539,13 @@ export default function App() {
                   <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-400 font-mono">
                     Please contact system administrator to seed roles & permissions.
                   </div>
-                  <button 
+                  <Button 
                     onClick={handleLogout}
-                    className="bg-white text-slate-950 border-2 border-slate-950 font-black px-5 py-2.5 rounded-xl shadow-[4px_4px_0_#000] active:translate-y-0.5 active:shadow-none hover:bg-slate-100 transition-all text-xs cursor-pointer"
+                    variant="outline"
+                    size="sm"
                   >
                     Logout & Try Another Account
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -642,21 +648,22 @@ export default function App() {
               </div>
 
               <div className="flex gap-4 pt-4">
-                <button 
+                <Button 
                   type="button" 
+                  variant="outline"
                   onClick={() => { setShowChangePasswordModal(false); setPwdModalError(''); setPwdModalSuccess(''); }}
-                  className="flex-1 py-3 bg-white/5 border border-white/10 text-white font-bold rounded-xl text-sm transition-all"
+                  className="flex-1 justify-center"
                 >
                   Cancel
-                </button>
-                <button 
+                </Button>
+                <Button 
                   type="submit" 
-                  disabled={pwdModalLoading}
-                  className="flex-1 py-3 bg-brand-mint hover:bg-brand-mint-hover text-brand-plum font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+                  variant="primary"
+                  loading={pwdModalLoading}
+                  className="flex-1 justify-center"
                 >
-                  {pwdModalLoading && <RefreshCw className="w-4 h-4 animate-spin" />}
                   Save Password
-                </button>
+                </Button>
               </div>
             </form>
       </Modal>
@@ -706,22 +713,24 @@ function ConfirmModal({ title, message, confirmLabel = 'Confirm', tone = 'defaul
           <p className="text-sm text-slate-300 leading-relaxed">{message}</p>
         </div>
         <div className="flex gap-3 pt-2">
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={onCancel}
             disabled={loading}
-            className="flex-1 py-3 bg-white/5 border border-white/10 text-white font-bold rounded-xl transition-all hover:bg-white/10 disabled:opacity-60 text-sm"
+            className="flex-1 justify-center"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant={isDanger ? 'danger' : isWarning ? 'secondary' : 'primary'}
             onClick={onConfirm}
-            disabled={loading}
-            className={`flex-1 py-3 font-bold rounded-xl transition-all border-none cursor-pointer disabled:opacity-60 text-sm ${confirmClass}`}
+            loading={loading}
+            className="flex-1 justify-center"
           >
-            {loading ? 'Working...' : confirmLabel}
-          </button>
+            {confirmLabel}
+          </Button>
         </div>
       </div>
     </Modal>
@@ -824,14 +833,15 @@ function LoginScreen({ onLogin, onGoogleLogin, loading, errorMsg }) {
             ></div>
           </div>
 
-          <button 
+          <Button 
             type="submit" 
-            disabled={loading || !turnstileToken}
-            className="w-full bg-brand-mint hover:bg-brand-mint-hover disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-brand-plum font-extrabold text-sm py-3.5 rounded-full transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:shadow-brand-mint/15"
+            variant="primary"
+            disabled={!turnstileToken}
+            loading={loading}
+            className="w-full justify-center text-sm py-3.5"
           >
-            {loading && <RefreshCw className="w-4 h-4 animate-spin" />}
             Sign in to admin
-          </button>
+          </Button>
         </form>
 
         <div className="relative flex items-center">
@@ -840,15 +850,16 @@ function LoginScreen({ onLogin, onGoogleLogin, loading, errorMsg }) {
           <div className="flex-grow border-t border-white/10"></div>
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={onGoogleLogin}
-          disabled={loading}
-          className="w-full bg-white hover:bg-slate-100 disabled:bg-slate-700 disabled:text-slate-500 text-slate-900 font-extrabold text-sm py-3.5 rounded-full transition-all flex items-center justify-center gap-3 cursor-pointer shadow-lg"
+          loading={loading}
+          className="w-full justify-center text-sm py-3.5"
         >
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-sm font-black text-blue-600">G</span>
           Sign in with Google
-        </button>
+        </Button>
       </div>
     </div>
   );

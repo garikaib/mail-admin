@@ -4,6 +4,7 @@ import { usePermissions } from '../../shared/lib/usePermissions';
 import { CredentialsPanel } from './CredentialsPanel';
 import { RefreshCw } from 'lucide-react';
 import Modal from '../../shared/components/Modal';
+import Button from '../../shared/components/Button';
 
 export default function CredentialsScreen() {
   const { hasPermission } = usePermissions();
@@ -244,19 +245,21 @@ export default function CredentialsScreen() {
               </div>
 
               <div className="flex gap-4 pt-4">
-                <button 
+                <Button 
                   type="button" 
+                  variant="outline"
                   onClick={() => setShowAddDnsRecordModal(false)}
-                  className="flex-1 py-3 bg-white/5 border border-white/10 text-white font-bold rounded-xl text-sm"
+                  className="flex-1 justify-center"
                 >
                   Cancel
-                </button>
-                <button 
+                </Button>
+                <Button 
                   type="submit" 
-                  className="flex-1 py-3 bg-brand-mint hover:bg-brand-mint-hover text-brand-plum font-bold rounded-xl text-sm transition-all border-none cursor-pointer"
+                  variant="primary"
+                  className="flex-1 justify-center"
                 >
                   Create Record
-                </button>
+                </Button>
               </div>
             </form>
       </Modal>
@@ -365,19 +368,21 @@ export default function CredentialsScreen() {
               </div>
 
               <div className="flex gap-4 pt-4">
-                <button 
+                <Button 
                   type="button" 
+                  variant="outline"
                   onClick={() => setShowEditDnsRecordModal(false)}
-                  className="flex-1 py-3 bg-white/5 border border-white/10 text-white font-bold rounded-xl text-sm"
+                  className="flex-1 justify-center"
                 >
                   Cancel
-                </button>
-                <button 
+                </Button>
+                <Button 
                   type="submit" 
-                  className="flex-1 py-3 bg-brand-mint hover:bg-brand-mint-hover text-brand-plum font-bold rounded-xl text-sm transition-all border-none cursor-pointer"
+                  variant="primary"
+                  className="flex-1 justify-center"
                 >
                   Save Changes
-                </button>
+                </Button>
               </div>
             </form>
       </Modal>
@@ -426,20 +431,22 @@ export default function CredentialsScreen() {
               </div>
 
               <div className="flex gap-4 pt-4">
-                <button 
+                <Button 
                   type="button" 
+                  variant="outline"
                   onClick={() => setShowAddCredModal(false)}
-                  className="flex-1 py-3 bg-white/5 border border-white/10 text-white font-bold rounded-xl text-sm"
+                  className="flex-1 justify-center"
                 >
                   Cancel
-                </button>
-                <button 
+                </Button>
+                <Button 
                   type="submit" 
-                  disabled={loading}
-                  className="flex-1 py-3 bg-brand-mint hover:bg-brand-mint-hover text-brand-plum font-bold rounded-xl text-sm transition-all"
+                  variant="primary"
+                  loading={loading}
+                  className="flex-1 justify-center"
                 >
                   Save Credential
-                </button>
+                </Button>
               </div>
             </form>
       </Modal>
@@ -490,23 +497,25 @@ export default function CredentialsScreen() {
               </div>
 
               <div className="flex gap-4 pt-4">
-                <button 
+                <Button 
                   type="button" 
+                  variant="outline"
                   onClick={() => {
                     setShowEditCredModal(false);
                     setEditingCredential(null);
                   }}
-                  className="flex-1 py-3 bg-gray-200 hover:bg-gray-300 text-brand-plum font-bold rounded-xl text-sm transition-all"
+                  className="flex-1 justify-center"
                 >
                   Cancel
-                </button>
-                <button 
+                </Button>
+                <Button 
                   type="submit" 
-                  disabled={loading}
-                  className="flex-1 py-3 bg-brand-mint hover:bg-brand-mint-hover text-brand-plum font-bold rounded-xl text-sm transition-all"
+                  variant="primary"
+                  loading={loading}
+                  className="flex-1 justify-center"
                 >
                   Save Changes
-                </button>
+                </Button>
               </div>
             </form>
       </Modal>
