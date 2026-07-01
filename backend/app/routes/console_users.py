@@ -77,6 +77,15 @@ def create_console_user(
         date_joined=datetime.utcnow()
     )
 
+    # Validate roles
+    VALID_ROLES = {"super_admin", "domain_admin", "support_admin", "readonly_admin"}
+    for role_name in req.roles:
+        if role_name not in VALID_ROLES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid role: '{role_name}'. Allowed roles are: {', '.join(sorted(VALID_ROLES))}."
+            )
+
     try:
         db.add(new_user)
         db.flush()  # Populate new_user.id
@@ -173,6 +182,16 @@ def update_console_user(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="You cannot modify your own assigned Casbin roles directly."
                 )
+            
+            # Validate roles
+            VALID_ROLES = {"super_admin", "domain_admin", "support_admin", "readonly_admin"}
+            for role_name in req.roles:
+                if role_name not in VALID_ROLES:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Invalid role: '{role_name}'. Allowed roles are: {', '.join(sorted(VALID_ROLES))}."
+                    )
+
             # Remove previous roles
             db.query(UserRole).filter(UserRole.user_id == user.id).delete()
             # Add new roles
