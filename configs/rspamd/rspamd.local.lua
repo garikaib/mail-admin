@@ -128,7 +128,8 @@ end
 
 local function is_whitelisted(domain)
   if not domain or domain == "" then return false end
-  if whitelisted_domains[domain] then return true end
+  domain = domain:lower()
+  if whitelisted_domains[domain] or whitelisted_domains["." .. domain] then return true end
   
   -- Check parent domains for TLD-like whitelisting or subdomains
   local parts = {}
@@ -136,9 +137,12 @@ local function is_whitelisted(domain)
     table.insert(parts, part)
   end
   
-  if #parts > 1 then
-    local parent = table.concat(parts, ".", 2)
-    if whitelisted_domains[parent] then return true end
+  -- Check all suffixes (e.g. for a.b.c.d, check b.c.d, c.d)
+  for i = 2, #parts - 1 do
+    local suffix = table.concat(parts, ".", i)
+    if whitelisted_domains[suffix] or whitelisted_domains["." .. suffix] then
+      return true
+    end
   end
   
   return false
