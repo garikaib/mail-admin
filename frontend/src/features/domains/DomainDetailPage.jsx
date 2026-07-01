@@ -7,9 +7,9 @@ import { formatTimeOnly } from '../../shared/lib/helpers';
 export function DomainDetailPage({ 
   domain, mailboxes, aliases, provisionLogs, onBack, onAddUser, 
   onAddAlias, onResetPassword, onDeleteMailbox, onDeleteAlias, 
-  onEditAlias, plans, hasPermission, onDeleteDomain, refresh 
+  onEditAlias, plans, hasPermission, onDeleteDomain, refresh,
+  activeSubTab, setActiveSubTab
 }) {
-  const [activeSubTab, setActiveSubTab] = useState('mailboxes');
 
   const activePlan = plans.find(p => p.max_users === domain.max_users && p.max_aliases === domain.max_aliases);
 
@@ -89,15 +89,17 @@ export function DomainDetailPage({
           <LinkIcon className="w-3.5 h-3.5 inline mr-1.5" />
           Forwarders ({aliases.length})
         </button>
-        <button 
-          onClick={() => setActiveSubTab('logs')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeSubTab === 'logs' ? 'bg-brand-mint/10 text-brand-mint border border-brand-mint/20' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <Clock className="w-3.5 h-3.5 inline mr-1.5" />
-          Provision Logs
-        </button>
+        {hasPermission('domains:provision_status') && (
+          <button 
+            onClick={() => setActiveSubTab('logs')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeSubTab === 'logs' ? 'bg-brand-mint/10 text-brand-mint border border-brand-mint/20' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5 inline mr-1.5" />
+            Provision Logs
+          </button>
+        )}
       </div>
 
       {/* TAB SUBSECTIONS */}
@@ -264,7 +266,7 @@ export function DomainDetailPage({
         </div>
       )}
 
-      {activeSubTab === 'logs' && (
+      {activeSubTab === 'logs' && hasPermission('domains:provision_status') && (
         <div className="space-y-4">
           <h3 className="text-lg font-bold text-white">Infrastructure Provisioning Log</h3>
           <div className="glassmorphism-card p-6 rounded-2xl border border-white/5 font-mono text-xs space-y-2 max-h-[400px] overflow-y-auto">
