@@ -46,6 +46,44 @@ try:
 except Exception as e:
     logger.error(f"Error initializing database tables: {e}")
 
+
+
+def disable_self_forwarding_aliases():
+    from backend.app.core.database import SessionLocal
+    from backend.app.models import MailAlias
+
+    db = SessionLocal()
+    updated = 0
+    deleted = 0
+    try:
+        aliases = db.query(MailAlias).all()
+        for alias in aliases:
+            source = (alias.source or "").strip().lower()
+            destinations = []
+            seen = set()
+            for email in [e.strip().lower() for e in (alias.destination or "").split(",") if e.strip()]:
+                if email == source or email in seen:
+                    continue
+                seen.add(email)
+                destinations.append(email)
+
+            if destinations:
+                new_destination = ", ".join(destinations)
+                if new_destination != alias.destination:
+                    alias.destination = new_destination
+                    updated += 1
+            else:
+                db.delete(alias)
+                deleted += 1
+
+        if updated or deleted:
+            db.commit()
+            logger.info("Startup alias sweep complete: updated=%s deleted=%s", updated, deleted)
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to sweep self-forwarding aliases at startup: {e}")
+    finally:
+        db.close()
 def run_migrations():
     from sqlalchemy import text
     from backend.app.core.database import SessionLocal, use_sqlite
@@ -151,6 +189,32 @@ def run_migrations():
             except Exception:
                 db.rollback()
 
+        # 5. Migrate core_domainregistration for dry_run and target_emails columns
+        if use_sqlite:
+            res = db.execute(text("PRAGMA table_info(core_domainregistration);")).all()
+            cols = [r[1] for r in res]
+            if "dry_run" not in cols:
+                logger.info("Adding dry_run to SQLite core_domainregistration...")
+                db.execute(text("ALTER TABLE core_domainregistration ADD COLUMN dry_run BOOLEAN NOT NULL DEFAULT 0;"))
+                db.commit()
+            if "target_emails" not in cols:
+                logger.info("Adding target_emails to SQLite core_domainregistration...")
+                db.execute(text("ALTER TABLE core_domainregistration ADD COLUMN target_emails VARCHAR(500) DEFAULT 'admin@zispa.org.zw, garikaib@gmail.com';"))
+                db.commit()
+        else:
+            try:
+                db.execute(text("ALTER TABLE core_domainregistration ADD COLUMN dry_run BOOLEAN NOT NULL DEFAULT 0;"))
+                db.commit()
+                logger.info("Added dry_run to MySQL core_domainregistration.")
+            except Exception:
+                db.rollback()
+            try:
+                db.execute(text("ALTER TABLE core_domainregistration ADD COLUMN target_emails VARCHAR(500) DEFAULT 'admin@zispa.org.zw, garikaib@gmail.com';"))
+                db.commit()
+                logger.info("Added target_emails to MySQL core_domainregistration.")
+            except Exception:
+                db.rollback()
+
     except Exception as e:
         logger.error(f"Migration error: {e}")
     finally:
@@ -158,6 +222,7 @@ def run_migrations():
 
 
 run_migrations()
+disable_self_forwarding_aliases()
 
 app = FastAPI(
     title="ZimPrices Mail Admin API",

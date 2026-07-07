@@ -27,6 +27,21 @@ def audit_log(db: Session, admin_email: str, action: str, target: str, details: 
     except Exception as e:
         logger.error(f"Failed to write audit log: {e}")
 
+
+def _normalize_destination_list(source: str, destination: str) -> list[str]:
+    """Return unique destination addresses with any self-forward removed."""
+    source_norm = (source or "").strip().lower()
+    cleaned = []
+    seen = set()
+    for email in [e.strip().lower() for e in (destination or "").split(",") if e.strip()]:
+        if email == source_norm:
+            continue
+        if email in seen:
+            continue
+        seen.add(email)
+        cleaned.append(email)
+    return cleaned
+
 @router.get("/domain/{domain_name}", response_model=List[AliasResponse])
 def list_aliases(
     domain_name: str,
@@ -91,6 +106,10 @@ def create_alias(
              raise HTTPException(status_code=400, detail=f"Invalid destination email address: '{email}'")
              
     source = f"{source_username}@{domain_name}"
+    normalized_destinations = _normalize_destination_list(source, destination)
+    if not normalized_destinations:
+        raise HTTPException(status_code=400, detail="Alias destination cannot forward to itself.")
+    destination = ", ".join(normalized_destinations)
     
     # Check if duplicate exists
     existing = db.query(MailAlias).filter(
@@ -140,7 +159,11 @@ def update_alias(
     for email in emails:
         if not re.match(r'[^@]+@[^@]+\.[^@]+', email):
              raise HTTPException(status_code=400, detail=f"Invalid destination email address: '{email}'")
-             
+    normalized_destinations = _normalize_destination_list(alias.source, destination)
+    if not normalized_destinations:
+        raise HTTPException(status_code=400, detail="Alias destination cannot forward to itself.")
+    destination = ", ".join(normalized_destinations)
+            
     old_dest = alias.destination
     alias.destination = destination
     db.commit()
